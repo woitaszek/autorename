@@ -96,34 +96,54 @@ def auto_name_file(path: str, filename: str) -> Union[str, None]:
 # Filesystem Traversal
 # ----------------------------------------------------------------------
 
+def traverse(target, dryrun = True):
+    """
+    Traverse the specified command line arguments. If the argument is a
+    directory, traverse the directory recursively. If the argument is a
+    file, process the file.
+    """
+    
+    logger = logging.getLogger('autorename.traverse')
+
+    # Skip things that don't exist
+    if not os.path.exists(t):
+        logger.warning("Argument '%s' is not a file or a directory, skipping", t)
+        return
+
+    # Process singleton files
+    if os.path.isfile(t):
+        logger.info("Processing filename argument '%s'", t)
+        path = os.path.dirname(t)
+        filename = os.path.basename(t)
+        process_file(path, filename, dryrun)
+        return
+
+    # Process directories recursively
+    if os.path.isdir(t):
+        logger.info("Processing directory argument '%s'", t)
+        for root, dirs, files in os.walk(t):
+            for file in files:
+                process_file(root, file, dryrun)
+        return
 
 
-# ----------------------------------------------------------------------
-# Main Execution
-# ----------------------------------------------------------------------
+def process_file(path, filename, dryrun = True):
+    """
+    Process the specified file.
+
+    Return True if the file was renamed, False if the file was not renamed.
+    """
+    logger = logging.getLogger('autorename.process_file')
+
+    logger.debug("Processing file %s     %s", path, filename)
+
+    return
 
 
-
-# if __name__ == '__main__':
-#     logger = logging.getLogger('autorename.main')
-#     parser = argparse.ArgumentParser("Rename specified files to 'YYYY-MM-DD-HASH.ext'", **('description',))
-#     parser.add_argument('--dryrun', 'store_true', False, **('action', 'default'))
-#     parser.add_argument('directory', '+', **('nargs',))
-#     args = parser.parse_args()
-#     dryrun = args.dryrun
-#     if dryrun:
-#         logger.warn('This is a dryrun, so no files will be modified')
 #     for d in set(args.directory):
 #         dirname = os.path.join(os.getcwd(), d)
 #         dirname = os.path.normpath(dirname)
-#         if not os.path.isdir(dirname):
-#             logger.warning("Parameter '%s' is not a directory", dirname)
-#             continue
-#         else:
-#             logger.info('Processing path %s', dirname)
-#         count = 0
-#         for f in os.listdir(dirname):
-#             filepath = os.path.join(dirname, f)
+
 #             if os.path.isfile(filepath):
 #                 count += auto_name_file(dirname, f, dryrun, **('dryrun',))
 
@@ -136,3 +156,29 @@ def auto_name_file(path: str, filename: str) -> Union[str, None]:
 #                 logger.info('Path: %s   Renamed: %i', dirname, count)
 #                 continue
 #                 return None
+
+
+
+# ----------------------------------------------------------------------
+# Main Execution
+# ----------------------------------------------------------------------
+
+if __name__ == '__main__':
+
+    logger = logging.getLogger('autorename.main')
+
+    parser = argparse.ArgumentParser(
+        description="Rename specified files to 'YYYY-MM-DD-HASH.ext'")
+    parser.add_argument('--dryrun', action='store_true', default=False)
+    parser.add_argument('target', nargs='+')
+    args = parser.parse_args()
+
+    dryrun = args.dryrun
+    if dryrun:
+        logger.info("Dry run mode enabled, no files will be renamed")
+
+    for t in args.target:
+        traverse(t, dryrun)
+
+    logger.info('Terminating normally')
+
