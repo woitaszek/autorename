@@ -85,7 +85,7 @@ def auto_name_file(path: str, filename: str) -> Union[str, None]:
         for chunk in iter(lambda: f.read(4096), b''):
             hash_md5.update(chunk)
     hash = hash_md5.hexdigest()
-    hash = hash[0:10]
+    hash = hash[0:10] # Beginning of hash, just like git
 
     # Generate and return the new filename
     new_filename = mtime_datetime.strftime('%Y-%m-%d-') + hash + '.' + extension

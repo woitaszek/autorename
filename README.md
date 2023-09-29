@@ -18,10 +18,13 @@ Features:
   For example:
       Copy of IMAGE-1 (2).JPG -> 2020-01-01-98ecf8427e.jpg
 
-* Just like Git, the last 10 characters of the md5 hash are used to avoid
-  collisions:
+* The first 10 characters of the md5 hash are used to avoid collisions:
+
         d41d8cd98f00b204e9800998ecf8427e
-        ......................^^^^^^^^^^
+        ^^^^^^^^^^......................
+  
+  (The front of the hash is used just like git, as opposed to the back of the
+  hash like GPG.)
 
 * Recognizes specific file extensions and renames them accordingly. Skips the
   rest.
