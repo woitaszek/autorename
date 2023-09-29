@@ -31,7 +31,9 @@ OS_STAT_RESULT = os.stat_result([
 def mock_setup(mocker):
     mock_os_stat = mocker.patch('os.stat', return_value=OS_STAT_RESULT)
     mock_os_open = mocker.patch('builtins.open', mocker.mock_open(read_data=b''))
-    return mock_os_stat, mock_os_open
+    mock_os_path_exists = mocker.patch('os.path.exists', return_value=True)
+    mock_os_path_isfile = mocker.patch('os.path.isfile', return_value=True)
+    return mock_os_stat, mock_os_open, mock_os_path_exists, mock_os_path_isfile
 
 
 # ----------------------------------------------------------------------

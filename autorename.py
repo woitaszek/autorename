@@ -51,6 +51,8 @@ def auto_name_file(path: str, filename: str) -> Union[str, None]:
     logger = logging.getLogger('autorename.auto_name_file')
     
     filepath = os.path.join(path, filename)
+    assert os.path.exists(filepath)
+    assert os.path.isfile(filepath)
 
     # Check to see if the file has a valid extension for renaming
     f = filename.lower()
