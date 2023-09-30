@@ -29,6 +29,9 @@ OS_STAT_RESULT = os.stat_result([
 
 @pytest.fixture
 def mock_setup(mocker):
+    """
+    Mock a file that exists and has a known mtime and empty content.
+    """
     mock_os_stat = mocker.patch('os.stat', return_value=OS_STAT_RESULT)
     mock_os_open = mocker.patch('builtins.open', mocker.mock_open(read_data=b''))
     mock_os_path_exists = mocker.patch('os.path.exists', return_value=True)
@@ -45,36 +48,36 @@ def mock_setup(mocker):
 # provided filename variables and the file's os.stat() metadata and contents,
 # but does not perform any modifications to the filesystem.
 
-def test_rename_filename_png(mock_setup):
+def test_generate_filename_png(mock_setup):
     """
-    Test renaming a file that matches an expected suffix: /path/does/not/exist/filename.png
-    """
-    new_name = autorename.generate_filename('/path/does/not/exist', 'filename.png')
-    assert new_name == '2010-01-02-d41d8cd98f.png'
-
-
-def test_rename_filename_hash_png(mock_setup):
-    """
-    Test renaming a file that matches an expected suffix with a changed hash: /path/does/not/exist/filename-HASH.png
+    Test filename generation for a file that matches an expected suffix:
+    /path/does/not/exist/filename.png
     """
     new_name = autorename.generate_filename('/path/does/not/exist', 'filename.png')
     assert new_name == '2010-01-02-d41d8cd98f.png'
 
 
-def test_skip_filename_dat(mock_setup):
+def test_generate_filename_hash_png(mock_setup):
+    """
+    Test filename generation for a file that matches an expected suffix with a changed hash:
+    /path/does/not/exist/filename-HASH.png
+    """
+    new_name = autorename.generate_filename('/path/does/not/exist', 'filename.png')
+    assert new_name == '2010-01-02-d41d8cd98f.png'
+
+
+def test_generate_filename_unexpected_extension(mock_setup):
     """
     Test skipping a file that has an unexpected suffix: /path/does/not/exist/filename.dat
     """
-    sys.stderr.write('\n')
     new_name = autorename.generate_filename('/path/does/not/exist', 'filename.dat')
     assert new_name is None
 
 
-def test_skip_filename_prefix(mock_setup):
+def test_generate_filename_skip_prefix(mock_setup):
     """
     Test skipping files that start with yyyy-mm-dd as a prefix followed by a space
     """
-    sys.stderr.write('\n')
     for filename in ('2022-01-01 filename.png', '2022-01-XX filename.png'):
         new_name = autorename.generate_filename('/path/does/not/exist', filename)
         assert new_name is None
