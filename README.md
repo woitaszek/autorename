@@ -41,4 +41,14 @@ Features:
 You can call the script with arguments including directory names and file
 names:
 
-    autorename.py [options] [files or directories...]
+    autorename.py [--commit] <files | directories...>
+
+For example:
+
+First, run in dryrun mode (default) to see what it would do:
+
+    python ./autorename.py ~/Clippings
+  
+Then, run with `--commit` to actually rename the files:
+
+    python ./autorename.py --commit ~/Clippings
