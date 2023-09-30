@@ -149,6 +149,15 @@ def process_file(path, filename, dryrun=True, max_filename_length=0):
     if not os.path.exists(fullpath):
         raise FileNotFoundError(fullpath)
 
+    # Hardcoded override: If this is a .DS_Store file, make it go away
+    if filename == '.DS_Store':
+        if dryrun:
+            logger.warning('  Deleting file (dryrun):   %s', filename)
+        else:
+            logger.warning('  Deleting file:            %s', filename)
+            os.remove(fullpath)
+        return True
+
     # Generate the new filename
     new_filename = generate_filename(path, filename)
 

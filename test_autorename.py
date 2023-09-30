@@ -46,6 +46,12 @@ def mock_os_rename(mocker):
     """
     return mocker.patch('os.rename')
 
+@pytest.fixture
+def mock_os_remove(mocker):
+    """
+    Mock the actions that are taken when a file is removed.
+    """
+    return mocker.patch('os.remove')
 
 
 # ----------------------------------------------------------------------
@@ -114,6 +120,14 @@ def test_process_filename_png(mock_setup, mock_os_rename):
         '/path/does/not/exist/filename.png', 
         '/path/does/not/exist/2010-01-02-d41d8cd98f.png')
 
+
+def test_process_remove_ds_store(mock_setup, mock_os_remove):
+    """
+    Test renaming a file that matches an expected suffix: /path/does/not/exist/.DS_Store
+    """
+    result = autorename.process_file('/path/does/not/exist', '.DS_Store', dryrun=False)
+    mock_os_remove.assert_called_once_with(
+        '/path/does/not/exist/.DS_Store')
 
 
 # ----------------------------------------------------------------------

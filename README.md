@@ -18,7 +18,7 @@ Features:
   For example:
       Copy of IMAGE-1 (2).JPG -> 2020-01-01-98ecf8427e.jpg
 
-* The first 10 characters of the md5 hash are used to avoid collisions:
+  The first 10 characters of the md5 hash are used to avoid collisions:
 
         d41d8cd98f00b204e9800998ecf8427e
         ^^^^^^^^^^......................
@@ -35,6 +35,8 @@ Features:
 * Skips files that start with prefixes that look like dates and words, such as
   `2020-01-01 My Picture.jpg` or `2020-01-XX My Picture.jpg` so that if you did
   name any files to get them "close enough", they won't get renamed.
+
+* Deletes all those pesky `.DS_Store` files that macOS likes to create.
 
 ## Usage
 
