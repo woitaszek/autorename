@@ -68,13 +68,13 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
     
     # Skip files that don't have a valid extension
     if extension is None:
-        logger.debug('Skipping extension:    %s', filepath)
+        logger.debug('  Skipping extension:       %s', filename) # Filename at 51 chars
         return None
 
     # Check to see if the file already has a valid prefix
     m = re_prefix.match(filename)
     if m is not None:
-        logger.debug('Skipping valid prefix: %-80s ', filepath)
+        logger.debug('  Skipping valid prefix:    %s', filename) # Filename at 51 chars
         return None
     
     # Get the file's modification time and compute the MD5 hash
@@ -122,12 +122,21 @@ def traverse(target, dryrun = True):
     if os.path.isdir(t):
         logger.info("Processing directory argument '%s'", t)
         for root, dirs, files in os.walk(t):
-            for file in files:
-                process_file(root, file, dryrun)
+            logger.info("Processing directory '%s'", root)
+
+            # Prescan the filename strings to get the longest length
+            max_filename_length = 0
+            for filename in files:
+                max_filename_length = max(max_filename_length, len(filename))
+
+            # Process each file
+            for filename in files:
+                process_file(root, filename, dryrun, 
+                             max_filename_length=max_filename_length)
         return
 
 
-def process_file(path, filename, dryrun = True):
+def process_file(path, filename, dryrun=True, max_filename_length=0):
     """
     Process the specified file.
 
@@ -135,28 +144,36 @@ def process_file(path, filename, dryrun = True):
     """
     logger = logging.getLogger('autorename.process_file')
 
-    logger.debug("Processing file %s     %s", path, filename)
+    # Check that the source file exists
+    fullpath = os.path.join(path, filename)
+    if not os.path.exists(fullpath):
+        raise FileNotFoundError(fullpath)
 
-    return
+    # Generate the new filename
+    new_filename = generate_filename(path, filename)
 
+    # Skip if the file is not to be renamed
+    if new_filename is None:
+        #logger.debug('  Skipping file:            %s', filename)  # Reason is logged by generate_filename
+        return False
 
-#     for d in set(args.directory):
-#         dirname = os.path.join(os.getcwd(), d)
-#         dirname = os.path.normpath(dirname)
+    # Skip if the file is already named correctly
+    if filename == new_filename:
+        #logger.debug('  Skipping file:            %s', filename) # Filename at 50 chars
+        return False
 
-#             if os.path.isfile(filepath):
-#                 count += auto_name_file(dirname, f, dryrun, **('dryrun',))
+    # Rename the file
+    new_fullpath = os.path.join(path, new_filename)
+    filename_with_spacing = filename.ljust(max_filename_length)
+    if dryrun:
+        logger.info('  Renaming file (dryrun):   %s -> %s',
+                    filename_with_spacing, new_filename) # Filename at 50 chars for info
+    else:
+        logger.info('  Renaming file:            %s -> %s',
+                    filename_with_spacing, new_filename) # Filename at 50 chars for info
+        os.rename(fullpath, new_fullpath)
 
-#                 logger.info('Renaming: %-80s -> %s', filepath, new_filepath)
-#                 if not dryrun:
-#                     os.rename(filepath, new_filepath)
-#                 return new_filename
-
-#                 continue
-#                 logger.info('Path: %s   Renamed: %i', dirname, count)
-#                 continue
-#                 return None
-
+    return True
 
 
 # ----------------------------------------------------------------------
@@ -177,6 +194,7 @@ if __name__ == '__main__':
     if dryrun:
         logger.info("Dry run mode enabled, no files will be renamed")
 
+    # Process each command line argument
     for t in args.target:
         traverse(t, dryrun)
 

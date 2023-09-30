@@ -10,6 +10,7 @@ import pytest
 # Target imports
 import autorename
 
+
 # ----------------------------------------------------------------------
 # General mocking for reading a mock file
 # ----------------------------------------------------------------------
@@ -37,6 +38,14 @@ def mock_setup(mocker):
     mock_os_path_exists = mocker.patch('os.path.exists', return_value=True)
     mock_os_path_isfile = mocker.patch('os.path.isfile', return_value=True)
     return mock_os_stat, mock_os_open, mock_os_path_exists, mock_os_path_isfile
+
+@pytest.fixture
+def mock_os_rename(mocker):
+    """
+    Mock the actions that are taken when a file is renamed.
+    """
+    return mocker.patch('os.rename')
+
 
 
 # ----------------------------------------------------------------------
@@ -81,6 +90,29 @@ def test_generate_filename_skip_prefix(mock_setup):
     for filename in ('2022-01-01 filename.png', '2022-01-XX filename.png'):
         new_name = autorename.generate_filename('/path/does/not/exist', filename)
         assert new_name is None
+
+
+
+# ----------------------------------------------------------------------
+# Test rename action
+# ----------------------------------------------------------------------
+
+def test_process_filename_does_not_exist():
+    """
+    Test raising an exception on a file that does not exist
+    """
+    with pytest.raises(FileNotFoundError):
+        result = autorename.process_file('/path/does/not/exist', 'filename.png')
+
+
+def test_process_filename_png(mock_setup, mock_os_rename):
+    """
+    Test renaming a file that matches an expected suffix: /path/does/not/exist/filename.png
+    """
+    result = autorename.process_file('/path/does/not/exist', 'filename.png', dryrun=False)
+    mock_os_rename.assert_called_once_with(
+        '/path/does/not/exist/filename.png', 
+        '/path/does/not/exist/2010-01-02-d41d8cd98f.png')
 
 
 
