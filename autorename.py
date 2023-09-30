@@ -186,13 +186,18 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(
         description="Rename specified files to 'YYYY-MM-DD-HASH.ext'")
-    parser.add_argument('--dryrun', action='store_true', default=False)
+    parser.add_argument('--commit', action='store_true', default=False,
+                        help='Commit mode, files will be renamed')
     parser.add_argument('target', nargs='+')
     args = parser.parse_args()
 
-    dryrun = args.dryrun
-    if dryrun:
-        logger.info("Dry run mode enabled, no files will be renamed")
+    # Run in dry run mode by default unless --commit is specified
+    if args.commit:
+        logger.info("Commit mode enabled, files will be renamed")
+        dryrun = False
+    else:
+        logger.warning("Dry run mode enabled, no files will be renamed")
+        dryrun = True
 
     # Process each command line argument
     for t in args.target:
