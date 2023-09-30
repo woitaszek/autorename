@@ -14,7 +14,7 @@ import time
 from typing import Union
 
 # Extensions to be renamed
-EXTENSIONS = ['jpg', 'jpeg', 'gif', 'm4a', 'mov', 'mp4', 'png', 'webp', 'heic']
+EXTENSIONS = ['jpg', 'jpeg', 'gif', 'm4a', 'mov', 'mp4', 'pdf', 'png', 'webp', 'heic']
 
 # Configure logging
 logging.basicConfig(
