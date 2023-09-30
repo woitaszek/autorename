@@ -49,7 +49,7 @@ def test_rename_filename_png(mock_setup):
     """
     Test renaming a file that matches an expected suffix: /path/does/not/exist/filename.png
     """
-    new_name = autorename.auto_name_file('/path/does/not/exist', 'filename.png')
+    new_name = autorename.generate_filename('/path/does/not/exist', 'filename.png')
     assert new_name == '2010-01-02-d41d8cd98f.png'
 
 
@@ -57,7 +57,7 @@ def test_rename_filename_hash_png(mock_setup):
     """
     Test renaming a file that matches an expected suffix with a changed hash: /path/does/not/exist/filename-HASH.png
     """
-    new_name = autorename.auto_name_file('/path/does/not/exist', 'filename.png')
+    new_name = autorename.generate_filename('/path/does/not/exist', 'filename.png')
     assert new_name == '2010-01-02-d41d8cd98f.png'
 
 
@@ -66,7 +66,7 @@ def test_skip_filename_dat(mock_setup):
     Test skipping a file that has an unexpected suffix: /path/does/not/exist/filename.dat
     """
     sys.stderr.write('\n')
-    new_name = autorename.auto_name_file('/path/does/not/exist', 'filename.dat')
+    new_name = autorename.generate_filename('/path/does/not/exist', 'filename.dat')
     assert new_name is None
 
 
@@ -76,7 +76,7 @@ def test_skip_filename_prefix(mock_setup):
     """
     sys.stderr.write('\n')
     for filename in ('2022-01-01 filename.png', '2022-01-XX filename.png'):
-        new_name = autorename.auto_name_file('/path/does/not/exist', filename)
+        new_name = autorename.generate_filename('/path/does/not/exist', filename)
         assert new_name is None
 
 

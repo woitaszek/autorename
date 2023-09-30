@@ -34,7 +34,7 @@ re_prefix = re.compile("""
 # ----------------------------------------------------------------------
 
 
-def auto_name_file(path: str, filename: str) -> Union[str, None]:
+def generate_filename(path: str, filename: str) -> Union[str, None]:
     """
     Generate and return the new desired filename for the specified file.
     If the file is not to be renamed, return None.
