@@ -1,13 +1,15 @@
 # autorename
 
+This script renames the files in a directory to a new name based on the
+file's modification time and md5 hash for specific recognized extensions.
+
+![build status](https://github.com/woitaszek/autorename/actions/workflows/python-app.yml/badge.svg)
+
 ## Synopsis
 
 Do you keep a directory tree full of files that you clipped from the Internet
 that you want to keep, but they all have nonsensical and unhelpful names that
 makes the whole thing turn into a big pile? If so, this script is for you!
-
-This script renames the files in a directory to a new name based on the
-file's modification time and md5 hash for specific recognized extensions.
 
 Perfect for turning an unwieldy tree of bizarrely-named files into one with
 files that at least sort in the order they were created.

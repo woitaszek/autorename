@@ -3,13 +3,10 @@
 # Python imports
 import argparse
 import datetime
-import json
 import logging
 import hashlib
 import os
 import re
-import sys
-import time
 
 from typing import Union
 
@@ -25,7 +22,7 @@ logging.basicConfig(
 # be renamed; these start with yyyy-mm-XX and then have a space followed
 # by non-space character(s). Note that we allow characters other than
 # digits in the day field.
-re_prefix = re.compile("""
+re_prefix = re.compile(r"""
        \d\d\d\d-\d\d-\S\S[ ]\S+
         """, re.VERBOSE)
 
@@ -49,7 +46,7 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
         filename: The filename of the file
     """
     logger = logging.getLogger('autorename.auto_name_file')
-    
+
     filepath = os.path.join(path, filename)
     assert os.path.exists(filepath)
     assert os.path.isfile(filepath)
@@ -65,18 +62,18 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
     # Manual overrides
     if f.endswith('.jpeg'):
         extension = 'jpg'
-    
+
     # Skip files that don't have a valid extension
     if extension is None:
-        logger.debug('  Skipping extension:       %s', filename) # Filename at 51 chars
+        logger.debug('  Skipping extension:       %s', filename)  # Filename at 51 chars
         return None
 
     # Check to see if the file already has a valid prefix
     m = re_prefix.match(filename)
     if m is not None:
-        logger.debug('  Skipping valid prefix:    %s', filename) # Filename at 51 chars
+        logger.debug('  Skipping valid prefix:    %s', filename)  # Filename at 51 chars
         return None
-    
+
     # Get the file's modification time and compute the MD5 hash
     mtime_seconds = os.stat(filepath).st_mtime
     mtime_datetime = datetime.datetime.fromtimestamp(mtime_seconds)
@@ -85,7 +82,7 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
         for chunk in iter(lambda: f.read(4096), b''):
             hash_md5.update(chunk)
     hash = hash_md5.hexdigest()
-    hash = hash[0:10] # Beginning of hash, just like git
+    hash = hash[0:10]  # Beginning of hash, just like git
 
     # Generate and return the new filename
     new_filename = mtime_datetime.strftime('%Y-%m-%d-') + hash + '.' + extension
@@ -96,13 +93,13 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
 # Filesystem Traversal
 # ----------------------------------------------------------------------
 
-def traverse(target, dryrun = True):
+def traverse(target, dryrun=True):
     """
     Traverse the specified command line arguments. If the argument is a
     directory, traverse the directory recursively. If the argument is a
     file, process the file.
     """
-    
+
     logger = logging.getLogger('autorename.traverse')
 
     # Skip things that don't exist
@@ -131,7 +128,7 @@ def traverse(target, dryrun = True):
 
             # Process each file
             for filename in files:
-                process_file(root, filename, dryrun, 
+                process_file(root, filename, dryrun,
                              max_filename_length=max_filename_length)
         return
 
@@ -163,12 +160,12 @@ def process_file(path, filename, dryrun=True, max_filename_length=0):
 
     # Skip if the file is not to be renamed
     if new_filename is None:
-        #logger.debug('  Skipping file:            %s', filename)  # Reason is logged by generate_filename
+        # logger.debug('  Skipping file:            %s', filename)  # Reason is logged by generate_filename
         return False
 
     # Skip if the file is already named correctly
     if filename == new_filename:
-        #logger.debug('  Skipping file:            %s', filename) # Filename at 50 chars
+        # logger.debug('  Skipping file:            %s', filename) # Filename at 50 chars
         return False
 
     # Rename the file
@@ -176,10 +173,10 @@ def process_file(path, filename, dryrun=True, max_filename_length=0):
     filename_with_spacing = filename.ljust(max_filename_length)
     if dryrun:
         logger.info('  Renaming file (dryrun):   %s -> %s',
-                    filename_with_spacing, new_filename) # Filename at 50 chars for info
+                    filename_with_spacing, new_filename)  # Filename at 50 chars for info
     else:
         logger.info('  Renaming file:            %s -> %s',
-                    filename_with_spacing, new_filename) # Filename at 50 chars for info
+                    filename_with_spacing, new_filename)  # Filename at 50 chars for info
         os.rename(fullpath, new_fullpath)
 
     return True
@@ -213,4 +210,3 @@ if __name__ == '__main__':
         traverse(t, dryrun)
 
     logger.info('Terminating normally')
-

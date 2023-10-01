@@ -2,7 +2,6 @@
 
 # Python imports
 import os
-import sys
 
 # Test imports
 import pytest
@@ -16,17 +15,18 @@ import autorename
 # ----------------------------------------------------------------------
 
 OS_STAT_RESULT = os.stat_result([
-        0, # st_mode
-        0, # st_ino
-        0, # st_dev
-        1, # st_nlink
-        0, # st_uid
-        0, # st_gid
-        0, # st_size
-        0, # st_atime
-        1262430245, # st_mtime  2010-01-02 10:10:45
-        0 # st_ctime
+        0,  # st_mode
+        0,  # st_ino
+        0,  # st_dev
+        1,  # st_nlink
+        0,  # st_uid
+        0,  # st_gid
+        0,  # st_size
+        0,  # st_atime
+        1262430245,  # st_mtime  2010-01-02 10:10:45
+        0  # st_ctime
     ])
+
 
 @pytest.fixture
 def mock_setup(mocker):
@@ -39,12 +39,14 @@ def mock_setup(mocker):
     mock_os_path_isfile = mocker.patch('os.path.isfile', return_value=True)
     return mock_os_stat, mock_os_open, mock_os_path_exists, mock_os_path_isfile
 
+
 @pytest.fixture
 def mock_os_rename(mocker):
     """
     Mock the actions that are taken when a file is renamed.
     """
     return mocker.patch('os.rename')
+
 
 @pytest.fixture
 def mock_os_remove(mocker):
@@ -98,7 +100,6 @@ def test_generate_filename_skip_prefix(mock_setup):
         assert new_name is None
 
 
-
 # ----------------------------------------------------------------------
 # Test rename action
 # ----------------------------------------------------------------------
@@ -108,16 +109,16 @@ def test_process_filename_does_not_exist():
     Test raising an exception on a file that does not exist
     """
     with pytest.raises(FileNotFoundError):
-        result = autorename.process_file('/path/does/not/exist', 'filename.png')
+        autorename.process_file('/path/does/not/exist', 'filename.png')
 
 
 def test_process_filename_png(mock_setup, mock_os_rename):
     """
     Test renaming a file that matches an expected suffix: /path/does/not/exist/filename.png
     """
-    result = autorename.process_file('/path/does/not/exist', 'filename.png', dryrun=False)
+    autorename.process_file('/path/does/not/exist', 'filename.png', dryrun=False)
     mock_os_rename.assert_called_once_with(
-        '/path/does/not/exist/filename.png', 
+        '/path/does/not/exist/filename.png',
         '/path/does/not/exist/2010-01-02-d41d8cd98f.png')
 
 
@@ -125,7 +126,7 @@ def test_process_remove_ds_store(mock_setup, mock_os_remove):
     """
     Test renaming a file that matches an expected suffix: /path/does/not/exist/.DS_Store
     """
-    result = autorename.process_file('/path/does/not/exist', '.DS_Store', dryrun=False)
+    autorename.process_file('/path/does/not/exist', '.DS_Store', dryrun=False)
     mock_os_remove.assert_called_once_with(
         '/path/does/not/exist/.DS_Store')
 
