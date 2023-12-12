@@ -107,37 +107,59 @@ def traverse(target, dryrun=True):
     logger = logging.getLogger('autorename.traverse')
 
     # Skip things that don't exist
-    if not os.path.exists(t):
-        logger.warning("Argument '%s' is not a file or a directory, skipping", t)
+    if not os.path.exists(target):
+        logger.warning("Argument '%s' is not a file or a directory, skipping", target)
         return
 
-    # Process singleton files
-    if os.path.isfile(t):
-        logger.info("Processing filename argument '%s'", t)
-        path = os.path.dirname(t)
-        filename = os.path.basename(t)
+    # Process arguments that are files
+    if os.path.isfile(target):
+        logger.info("Processing filename argument '%s'", target)
+        path = os.path.dirname(target)
+        filename = os.path.basename(target)
         process_file(path, filename, dryrun)
         return
 
-    # Process directories recursively
-    if os.path.isdir(t):
-        logger.info("Processing directory argument '%s'", t)
-        for root, dirs, files in os.walk(t):
-            logger.info("Processing directory '%s'", root)
-
-            # Prescan the filename strings to get the longest length
-            max_filename_length = 0
-            for filename in files:
-                max_filename_length = max(max_filename_length, len(filename))
-
-            # Process each file
-            for filename in files:
-                process_file(root, filename, dryrun,
-                             max_filename_length=max_filename_length)
+    # Process arguments that are directories
+    if os.path.isdir(target):
+        logger.info("Processing directory argument '%s'", target)
+        for root, dirs, files in os.walk(target):
+            for d in dirs:
+                process_directory(os.path.join(root, d), dryrun)
         return
 
+    assert False, "Should not get here, directory entry '%s' is not a file or directory" % (target)
 
-def process_file(path, filename, dryrun=True, max_filename_length=0):
+
+def process_directory(path, dryrun=True):
+    """
+    Process the specified directory.
+    """
+    logger = logging.getLogger('autorename.process_directory')
+
+    # Check that the target directory exists
+    if not os.path.exists(path):
+        raise FileNotFoundError(path)
+
+    # Prescan the filename strings to get the longest length
+    max_filename_length = 0
+    file_count = 0
+    for filename in os.listdir(path):
+        max_filename_length = max(max_filename_length, len(filename))
+        file_count += 1
+
+    logger.info("Processing directory '%s' (%i files)", path, file_count)
+
+    # Process each file in the directory
+    for filename in os.listdir(path):
+        if os.path.isfile(os.path.join(path, filename)):
+            process_file(path, filename, dryrun,
+                         max_filename_length=max_filename_length,
+                         file_count=file_count)
+
+
+def process_file(path, filename, dryrun=True,
+                 max_filename_length=0,
+                 file_count=0):
     """
     Process the specified file.
 
@@ -210,7 +232,7 @@ if __name__ == '__main__':
         dryrun = True
 
     # Process each command line argument
-    for t in args.target:
-        traverse(t, dryrun)
+    for _t in args.target:
+        traverse(_t, dryrun)
 
     logger.info('Terminating normally')
