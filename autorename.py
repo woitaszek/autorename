@@ -122,9 +122,18 @@ def traverse(target, dryrun=True):
     # Process arguments that are directories
     if os.path.isdir(target):
         logger.info("Processing directory argument '%s'", target)
+
+        # Create a list of every directory and file in the tree, sorted,
+        # including the root directory
+        all_dirs = []
         for root, dirs, files in os.walk(target):
-            for d in dirs:
-                process_directory(os.path.join(root, d), dryrun)
+            # We process every directory as it is found by the walk
+            all_dirs.append(root)
+        all_dirs.sort()
+
+        # Now, process each directory
+        for root in all_dirs:
+            process_directory(root, dryrun)
         return
 
     assert False, "Should not get here, directory entry '%s' is not a file or directory" % (target)
@@ -144,6 +153,8 @@ def process_directory(path, dryrun=True):
     max_filename_length = 0
     file_count = 0
     for filename in os.listdir(path):
+        if not os.path.isfile(os.path.join(path, filename)):
+            continue
         max_filename_length = max(max_filename_length, len(filename))
         file_count += 1
 
