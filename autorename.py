@@ -19,8 +19,8 @@ EXTENSIONS = ['jpg', 'jpeg', 'gif',
 
 # Configure logging
 logging.basicConfig(
-        format="%(asctime)s %(name)-24.23s %(levelname)-8s %(message)s",
-        level=logging.DEBUG)
+    format="%(asctime)s %(name)-24.23s %(levelname)-8s %(message)s",
+    level=logging.DEBUG)
 
 # Regular expression for detecting manually-named files that should not
 # be renamed; these start with yyyy-mm-XX and then have a space followed
@@ -52,8 +52,8 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
     logger = logging.getLogger('autorename.auto_name_file')
 
     filepath = os.path.join(path, filename)
-    assert os.path.exists(filepath)
-    assert os.path.isfile(filepath)
+    assert os.path.exists(filepath), "File '%s' does not exist" % (filepath)
+    assert os.path.isfile(filepath), "File '%s' is not a regular file" % (filepath)
 
     # Check to see if the file has a valid extension for renaming
     f = filename.lower()
@@ -75,7 +75,7 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
     # Check to see if the file already has a valid prefix
     m = re_prefix.match(filename)
     if m is not None:
-        logger.debug('  Skipping valid prefix:    %s', filename)  # Filename at 51 chars
+        # logger.debug('  Skipping valid prefix:    %s', filename)  # Filename at 51 chars
         return None
 
     # Get the file's modification time and compute the MD5 hash
@@ -176,11 +176,11 @@ def process_file(path, filename, dryrun=True, max_filename_length=0):
     new_fullpath = os.path.join(path, new_filename)
     filename_with_spacing = filename.ljust(max_filename_length)
     if dryrun:
-        logger.info('  Renaming file (dryrun):   %s -> %s',
-                    filename_with_spacing, new_filename)  # Filename at 50 chars for info
+        logger.debug('  Renaming file (dryrun):   %s -> %s',
+                     filename_with_spacing, new_filename)  # Filename at 50 chars for info
     else:
-        logger.info('  Renaming file:            %s -> %s',
-                    filename_with_spacing, new_filename)  # Filename at 50 chars for info
+        logger.debug('  Renaming file:            %s -> %s',
+                     filename_with_spacing, new_filename)  # Filename at 50 chars for info
         os.rename(fullpath, new_fullpath)
 
     return True
