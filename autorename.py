@@ -11,7 +11,11 @@ import re
 from typing import Union
 
 # Extensions to be renamed
-EXTENSIONS = ['jpg', 'jpeg', 'gif', 'm4a', 'mov', 'mp4', 'pdf', 'png', 'webp', 'heic']
+EXTENSIONS = ['jpg', 'jpeg', 'gif',
+              'm4a', 'mov', 'mp4',
+              'pdf',
+              'png', 'webp', 'heic',
+              'pptx', 'docx', 'xlsx']
 
 # Configure logging
 logging.basicConfig(
