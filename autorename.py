@@ -69,7 +69,7 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
 
     # Skip files that don't have a valid extension
     if extension is None:
-        logger.debug('  Skipping extension:       %s', filename)  # Filename at 51 chars
+        # logger.debug('  Skipping extension:       %s', filename)  # Filename at 51 chars
         return None
 
     # Check to see if the file already has a valid prefix
