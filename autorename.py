@@ -149,28 +149,27 @@ def process_directory(path, dryrun=True):
     if not os.path.exists(path):
         raise FileNotFoundError(path)
 
-    # Prescan the filename strings to get the longest length
+    # Build the list of the files in the directory, capturing the
+    # maximum filename length and the number of files in the directory
     max_filename_length = 0
-    file_count = 0
+    filelist = []
     for filename in os.listdir(path):
         if not os.path.isfile(os.path.join(path, filename)):
             continue
+        filelist.append((path, filename))
         max_filename_length = max(max_filename_length, len(filename))
-        file_count += 1
 
-    logger.info("Processing directory '%s' (%i files)", path, file_count)
-
+    logger.info("Processing directory '%s' (%i files)", path, len(filelist))
+ 
     # Process each file in the directory
-    for filename in os.listdir(path):
-        if os.path.isfile(os.path.join(path, filename)):
-            process_file(path, filename, dryrun,
-                         max_filename_length=max_filename_length,
-                         file_count=file_count)
+    for path, filename in filelist:
+        process_file(
+            path, filename, dryrun,
+            max_filename_length=max_filename_length)
 
 
 def process_file(path, filename, dryrun=True,
-                 max_filename_length=0,
-                 file_count=0):
+                 max_filename_length=0):
     """
     Process the specified file.
 
