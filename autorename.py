@@ -7,6 +7,7 @@ import logging
 import hashlib
 import os
 import re
+import configparser
 
 from typing import Union
 
@@ -26,9 +27,77 @@ logging.basicConfig(
 # be renamed; these start with yyyy-mm-XX and then have a space followed
 # by non-space character(s). Note that we allow characters other than
 # digits in the day field.
-re_prefix = re.compile(r"""
+re_prefix_day = re.compile(r"""
        \d\d\d\d-\d\d-\S\S[ ]\S+
         """, re.VERBOSE)
+re_prefix_minute = re.compile(r"""
+         \d\d\d\d-\d\d-\d\d\d\d[ ]\S+
+        """, re.VERBOSE)
+
+# ----------------------------------------------------------------------
+# Directory configuration
+# ----------------------------------------------------------------------
+
+# We provide the ability to configure the autorename script using a
+# configuration file in the hierarchy containing the target directory.
+# For each path, we look for a file called .autorename.ini. If it exists,
+# we read the configuration from that file and cache it for quick retrievals.
+
+cached_directory_config = {}
+
+def get_directory_config(target_dir: str) -> dict:
+    """
+    Get the directory configuration for the autorename script.
+    Look for a file called .autorename.ini in the specified directory,
+    and if it exists, read the configuration from that file.
+    Return a dictionary with the configuration values.
+
+    The configuration file should be in the following format:
+    [autorename]
+    prefix_timestamp = minute | day
+    """
+
+    # If the directory configuration has already been read, return it
+    if target_dir in cached_directory_config:
+        return cached_directory_config[target_dir]
+    
+    # Check if the target directory exists
+    if not os.path.exists(target_dir) or not os.path.isdir(target_dir):
+        raise FileNotFoundError(f"Target directory '{target_dir}' does not exist")
+    
+    # Recurse into parent directories to find the configuration file
+    current_dir = target_dir
+    found_config_file = None
+    while current_dir != '/':
+        config_file = os.path.join(current_dir, '.autorename.ini')
+        if os.path.exists(config_file):
+            found_config_file = config_file
+            break
+        current_dir = os.path.dirname(current_dir)
+    
+    # If no configuration file was found, return None
+    if found_config_file is None:
+        cached_directory_config[target_dir] = None
+        return None
+    
+    # Read the configuration file
+    config = configparser.ConfigParser()
+    config.read(found_config_file)
+
+    # Check if the configuration file has the expected section and options
+    if 'autorename' not in config:
+        raise Exception(f"Configuration file '{found_config_file}' does not have the 'autorename' section")
+    if 'prefix_timestamp' not in config['autorename']:
+        raise Exception(f"Configuration file '{found_config_file}' does not have the 'prefix_timestamp' option")
+    if config['autorename']['prefix_timestamp'] not in ['minute', 'day']:
+        raise Exception(f"Configuration file '{found_config_file}' has invalid 'prefix_timestamp' option: {config['autorename']['prefix_timestamp']}")
+    
+    # Store the configuration in the cache
+    config = {"prefix_timestamp": config['autorename']['prefix_timestamp']}
+    cached_directory_config[target_dir] = config
+
+    return config
+
 
 # ----------------------------------------------------------------------
 # Functions
@@ -49,11 +118,13 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
         path: The path to the file
         filename: The filename of the file
     """
-    logger = logging.getLogger('autorename.auto_name_file')
 
     filepath = os.path.join(path, filename)
     assert os.path.exists(filepath), "File '%s' does not exist" % (filepath)
     assert os.path.isfile(filepath), "File '%s' is not a regular file" % (filepath)
+
+    # Get the directory configuration for the target directory
+    directory_config = get_directory_config(path)
 
     # Check to see if the file has a valid extension for renaming
     f = filename.lower()
@@ -73,7 +144,10 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
         return None
 
     # Check to see if the file already has a valid prefix
-    m = re_prefix.match(filename)
+    if directory_config is not None and directory_config['prefix_timestamp'] == 'minute':
+        m = re_prefix_minute.match(filename)
+    else:
+        m = re_prefix_day.match(filename)
     if m is not None:
         # logger.debug('  Skipping valid prefix:    %s', filename)  # Filename at 51 chars
         return None
@@ -89,7 +163,11 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
     hash = hash[0:10]  # Beginning of hash, just like git
 
     # Generate and return the new filename
-    new_filename = mtime_datetime.strftime('%Y-%m-%d-') + hash + '.' + extension
+    if directory_config is not None and directory_config['prefix_timestamp'] == 'minute':
+        # Add the minute from the mtime to the filename
+        new_filename = mtime_datetime.strftime('%Y-%m-%d-%H%M-') + hash + '.' + extension
+    else:
+        new_filename = mtime_datetime.strftime('%Y-%m-%d-') + hash + '.' + extension
     return new_filename
 
 
