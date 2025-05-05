@@ -30,8 +30,11 @@ EXTENSIONS = [
 
 # Configure logging
 logging.basicConfig(
-    format="%(asctime)s %(name)-24.23s %(levelname)-8s %(message)s", level=logging.DEBUG
+    format="%(asctime)s %(name)-24.23s %(levelname)-8s %(funcName)-15s %(message)s",
+    level=logging.DEBUG,
 )
+logger = logging.getLogger(__name__)
+
 
 # Regular expression for detecting manually-named files that should not
 # be renamed; these start with yyyy-mm-XX and then have a space followed
@@ -202,6 +205,7 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
         )
     else:
         new_filename = mtime_datetime.strftime("%Y-%m-%d-") + hash + "." + extension
+
     return new_filename
 
 
@@ -216,8 +220,6 @@ def traverse(target, dryrun=True):
     directory, traverse the directory recursively. If the argument is a
     file, process the file.
     """
-
-    logger = logging.getLogger("autorename.traverse")
 
     # Skip things that don't exist
     if not os.path.exists(target):
@@ -259,7 +261,6 @@ def process_directory(path, dryrun=True):
     """
     Process the specified directory.
     """
-    logger = logging.getLogger("autorename.process_directory")
 
     # Check that the target directory exists
     if not os.path.exists(path):
@@ -288,7 +289,6 @@ def process_file(path, filename, dryrun=True, max_filename_length=0):
 
     Return True if the file was renamed, False if the file was not renamed.
     """
-    logger = logging.getLogger("autorename.process_file")
 
     # Check that the source file exists
     fullpath = os.path.join(path, filename)
@@ -338,8 +338,6 @@ def process_file(path, filename, dryrun=True, max_filename_length=0):
 # ----------------------------------------------------------------------
 
 if __name__ == "__main__":
-    logger = logging.getLogger("autorename.main")
-
     parser = argparse.ArgumentParser(
         description="Rename specified files to 'YYYY-MM-DD-HASH.ext'"
     )
