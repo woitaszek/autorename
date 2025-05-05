@@ -35,10 +35,14 @@ def mock_setup(mocker):
     """
     Mock a file that exists and has a known mtime and empty content.
     """
-    mock_os_stat = mocker.patch('os.stat', return_value=OS_STAT_RESULT)
-    mock_os_open = mocker.patch('builtins.open', mocker.mock_open(read_data=b''))
-    mock_os_path_exists = mocker.patch('os.path.exists', return_value=True)
-    mock_os_path_isfile = mocker.patch('os.path.isfile', return_value=True)
+    mock_os_stat = mocker.patch("os.stat", return_value=OS_STAT_RESULT)
+
+    # Mock module.file.open, not builtins.open
+    # https://github.com/microsoft/vscode-python/issues/24811
+    mock_os_open = mocker.patch("autorename.open", mocker.mock_open(read_data=b""))
+
+    mock_os_path_exists = mocker.patch("os.path.exists", return_value=True)
+    mock_os_path_isfile = mocker.patch("os.path.isfile", return_value=True)
     return mock_os_stat, mock_os_open, mock_os_path_exists, mock_os_path_isfile
 
 
