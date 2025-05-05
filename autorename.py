@@ -30,7 +30,7 @@ EXTENSIONS = [
 
 # Configure logging
 logging.basicConfig(
-    format="%(asctime)s %(name)-24.23s %(levelname)-8s %(funcName)-15s %(message)s",
+    format="%(asctime)s %(name)-24.23s %(funcName)-25s %(levelname)-8s %(message)s",
     level=logging.DEBUG,
 )
 logger = logging.getLogger(__name__)
