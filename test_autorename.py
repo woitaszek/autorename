@@ -107,6 +107,17 @@ def test_generate_filename_skip_prefix(mock_setup):
         assert new_name is None
 
 
+def test_generate_filename_rename_extension_jpg(mock_setup):
+    """
+    Test renaming a file that includes an extension change
+    """
+
+    # Test renaming a file that matches an expected suffix: /path/does/not/exist/filename.jpg
+    new_name = autorename.generate_filename("/path/does/not/exist", "filename.jpeg")
+    assert new_name == "2010-01-02-d41d8cd98f.jpg"
+
+
+
 # ----------------------------------------------------------------------
 # Test rename action
 # ----------------------------------------------------------------------
