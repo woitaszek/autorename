@@ -28,9 +28,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install ruff pytest pytest-mock
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-    - name: Lint with ruff
+    - name: ruff check
       run: |
-        ruff . --exit-zero --statistics
+        ruff check --output-format=github .
     - name: Test with pytest
       run: |
         pytest
