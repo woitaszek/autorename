@@ -68,6 +68,7 @@ cached_directory_config = {}
 def get_directory_config(target_dir: str) -> dict:
     """
     Get the directory configuration for the autorename script.
+
     Look for a file called .autorename.ini in the specified directory,
     and if it exists, read the configuration from that file.
     Return a dictionary with the configuration values.
@@ -110,15 +111,19 @@ def get_directory_config(target_dir: str) -> dict:
     # Check if the configuration file has the expected section and options
     if "autorename" not in config:
         raise Exception(
-            f"Configuration file '{found_config_file}' does not have the 'autorename' section"
+            f"Configuration file '{found_config_file}' does not have the "
+            f"'autorename' section"
         )
     if "prefix_timestamp" not in config["autorename"]:
         raise Exception(
-            f"Configuration file '{found_config_file}' does not have the 'prefix_timestamp' option"
+            f"Configuration file '{found_config_file}' does not have the "
+            f"'prefix_timestamp' option"
         )
     if config["autorename"]["prefix_timestamp"] not in ["minute", "day"]:
         raise Exception(
-            f"Configuration file '{found_config_file}' has invalid 'prefix_timestamp' option: {config['autorename']['prefix_timestamp']}"
+            f"Configuration file '{found_config_file}' has invalid "
+            f"'prefix_timestamp' option: "
+            f"{config['autorename']['prefix_timestamp']}"
         )
 
     # Store the configuration in the cache
@@ -136,12 +141,14 @@ def get_directory_config(target_dir: str) -> dict:
 def generate_filename(path: str, filename: str) -> Union[str, None]:
     """
     Generate and return the new desired filename for the specified file.
+
     If the file is not to be renamed, return None.
 
-    The specified file must exist and be a regular file. The specified
-    file's metadata is retrieved using os.stat(), and the contents are
-    read to compute the MD5 hash. Note that the file is not renamed
-    in this routine; the caller is responsible for renaming the file.
+    The specified file must exist and be a regular file. The
+    specified file's metadata is retrieved using os.stat(), and the
+    contents are read to compute the MD5 hash. Note that the file is
+    not renamed in this routine; the caller is responsible for
+    renaming the file.
 
     Arguments:
         path: The path to the file
@@ -169,7 +176,7 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
 
     # Skip files that don't have a valid extension
     if extension is None:
-        # logger.debug('  Skipping extension:       %s', filename)  # Filename at 51 chars
+        # logger.debug('  Skipping extension:       %s', filename)
         return None
 
     # Check to see if the file already has a valid prefix
@@ -181,7 +188,7 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
     else:
         m = re_prefix_day.match(filename)
     if m is not None:
-        # logger.debug('  Skipping valid prefix:    %s', filename)  # Filename at 51 chars
+        # logger.debug('  Skipping valid prefix:    %s', filename)
         return None
 
     # Get the file's modification time and compute the MD5 hash
@@ -216,9 +223,10 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
 
 def traverse(target, dryrun=True):
     """
-    Traverse the specified command line arguments. If the argument is a
-    directory, traverse the directory recursively. If the argument is a
-    file, process the file.
+    Traverse the specified command line arguments.
+
+    If the argument is a directory, traverse the directory recursively.
+    If the argument is a file, process the file.
     """
 
     # Skip things that don't exist
@@ -252,8 +260,8 @@ def traverse(target, dryrun=True):
         return
 
     assert False, (
-        "Should not get here, directory entry '%s' is not a file or directory"
-        % (target)
+        "Should not get here, directory entry '%s' is not a file or "
+        "directory" % (target)
     )
 
 
@@ -287,7 +295,8 @@ def process_file(path, filename, dryrun=True, max_filename_length=0):
     """
     Process the specified file.
 
-    Return True if the file was renamed, False if the file was not renamed.
+    Return True if the file was renamed, False if the file was not
+    renamed.
     """
 
     # Check that the source file exists
@@ -309,12 +318,12 @@ def process_file(path, filename, dryrun=True, max_filename_length=0):
 
     # Skip if the file is not to be renamed
     if new_filename is None:
-        # logger.debug('  Skipping file:            %s', filename)  # Reason is logged by generate_filename
+        # logger.debug('  Skipping file:            %s', filename)
         return False
 
     # Skip if the file is already named correctly
     if filename == new_filename:
-        # logger.debug('  Skipping file:            %s', filename) # Filename at 50 chars
+        # logger.debug('  Skipping file:            %s', filename)
         return False
 
     # Rename the file
@@ -322,11 +331,15 @@ def process_file(path, filename, dryrun=True, max_filename_length=0):
     filename_with_spacing = filename.ljust(max_filename_length)
     if dryrun:
         logger.debug(
-            "  Renaming file (dryrun):   %s -> %s", filename_with_spacing, new_filename
+            "  Renaming file (dryrun):   %s -> %s",
+            filename_with_spacing,
+            new_filename,
         )  # Filename at 50 chars for info
     else:
         logger.debug(
-            "  Renaming file:            %s -> %s", filename_with_spacing, new_filename
+            "  Renaming file:            %s -> %s",
+            filename_with_spacing,
+            new_filename,
         )  # Filename at 50 chars for info
         os.rename(fullpath, new_fullpath)
 

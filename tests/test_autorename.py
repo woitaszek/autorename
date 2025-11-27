@@ -78,7 +78,8 @@ def mock_os_remove(mocker):
 
 def test_generate_filename_png(mock_setup):
     """
-    Test filename generation for a file that matches an expected suffix:
+    Test filename generation for a file that matches an expected suffix.
+
     /path/does/not/exist/filename.png
     """
     new_name = autorename.generate_filename("/path/does/not/exist", "filename.png")
@@ -87,7 +88,9 @@ def test_generate_filename_png(mock_setup):
 
 def test_generate_filename_hash_png(mock_setup):
     """
-    Test filename generation for a file that matches an expected suffix with a changed hash:
+    Test filename generation for a file that matches an expected suffix
+    with a changed hash.
+
     /path/does/not/exist/filename-HASH.png
     """
     new_name = autorename.generate_filename("/path/does/not/exist", "filename.png")
@@ -96,7 +99,9 @@ def test_generate_filename_hash_png(mock_setup):
 
 def test_generate_filename_unexpected_extension(mock_setup):
     """
-    Test skipping a file that has an unexpected suffix: /path/does/not/exist/filename.dat
+    Test skipping a file that has an unexpected suffix.
+
+    /path/does/not/exist/filename.dat
     """
     new_name = autorename.generate_filename("/path/does/not/exist", "filename.dat")
     assert new_name is None
@@ -104,7 +109,8 @@ def test_generate_filename_unexpected_extension(mock_setup):
 
 def test_generate_filename_skip_prefix(mock_setup):
     """
-    Test skipping files that start with yyyy-mm-dd as a prefix followed by a space
+    Test skipping files that start with yyyy-mm-dd as a prefix followed
+    by a space.
     """
     for filename in ("2022-01-01 filename.png", "2022-01-XX filename.png"):
         new_name = autorename.generate_filename("/path/does/not/exist", filename)
@@ -116,7 +122,8 @@ def test_generate_filename_rename_extension_jpg(mock_setup):
     Test renaming a file that includes an extension change
     """
 
-    # Test renaming a file that matches an expected suffix: /path/does/not/exist/filename.jpg
+    # Test renaming a file that matches an expected suffix:
+    # /path/does/not/exist/filename.jpg
     new_name = autorename.generate_filename("/path/does/not/exist", "filename.jpeg")
     assert new_name == "2010-01-02-d41d8cd98f.jpg"
 
@@ -204,11 +211,13 @@ def test_config_file_hierarchy(tmp_path):
     mtime_seconds = os.stat(jpg_file).st_mtime
     mtime_datetime = datetime.datetime.fromtimestamp(mtime_seconds)
     expected_filename = mtime_datetime.strftime("%Y-%m-%d-%H%M-") + "253bcac7dd.jpg"
-    # Check that the configuration file is read when starting in the test directory
+    # Check that the configuration file is read when starting in the
+    # test directory
     config = autorename.get_directory_config(tmp_path)
     assert config["prefix_timestamp"] == "minute"
 
-    # Check that the configuration file is read when starting in a subdirectory
+    # Check that the configuration file is read when starting in a
+    # subdirectory
     config = autorename.get_directory_config(subdir)
     assert config["prefix_timestamp"] == "minute"
 
@@ -237,7 +246,9 @@ def test_process_filename_does_not_exist():
 
 def test_process_filename_png(mock_setup, mock_os_rename):
     """
-    Test renaming a file that matches an expected suffix: /path/does/not/exist/filename.png
+    Test renaming a file that matches an expected suffix.
+
+    /path/does/not/exist/filename.png
     """
     autorename.process_file("/path/does/not/exist", "filename.png", dryrun=False)
     mock_os_rename.assert_called_once_with(
@@ -248,7 +259,9 @@ def test_process_filename_png(mock_setup, mock_os_rename):
 
 def test_process_remove_ds_store(mock_setup, mock_os_remove):
     """
-    Test renaming a file that matches an expected suffix: /path/does/not/exist/.DS_Store
+    Test renaming a file that matches an expected suffix.
+
+    /path/does/not/exist/.DS_Store
     """
     autorename.process_file("/path/does/not/exist", ".DS_Store", dryrun=False)
     mock_os_remove.assert_called_once_with("/path/does/not/exist/.DS_Store")

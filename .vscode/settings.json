@@ -6,6 +6,11 @@
     "python.testing.pytestEnabled": true,
     "markdownlint.run": "onSave",
     "editor.formatOnSave": true,
+    "editor.rulers": [
+        80,
+        88,
+        120
+    ],
     "[markdown]": {
         "editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
     },
