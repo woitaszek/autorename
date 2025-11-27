@@ -337,7 +337,9 @@ def process_file(path, filename, dryrun=True, max_filename_length=0):
 # Main Execution
 # ----------------------------------------------------------------------
 
-if __name__ == "__main__":
+
+def main():
+    """Main entry point for the autorename command-line tool."""
     parser = argparse.ArgumentParser(
         description="Rename specified files to 'YYYY-MM-DD-HASH.ext'"
     )
@@ -363,3 +365,7 @@ if __name__ == "__main__":
         traverse(_t, dryrun)
 
     logger.info("Terminating normally")
+
+
+if __name__ == "__main__":
+    main()

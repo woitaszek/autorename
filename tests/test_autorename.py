@@ -9,7 +9,7 @@ import datetime
 import pytest
 
 # Target imports
-import autorename
+from autorename import autorename
 
 
 # ----------------------------------------------------------------------
@@ -41,7 +41,9 @@ def mock_setup(mocker):
 
     # Mock module.file.open, not builtins.open
     # https://github.com/microsoft/vscode-python/issues/24811
-    mock_os_open = mocker.patch("autorename.open", mocker.mock_open(read_data=b""))
+    mock_os_open = mocker.patch(
+        "autorename.autorename.open", mocker.mock_open(read_data=b"")
+    )
 
     mock_os_path_exists = mocker.patch("os.path.exists", return_value=True)
     mock_os_path_isfile = mocker.patch("os.path.isfile", return_value=True)

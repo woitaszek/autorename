@@ -54,7 +54,7 @@ Features:
 
 * Deletes all those pesky `.DS_Store` files that macOS likes to create.
 
-## Configuration
+## In-Place Configuration
 
 The script can be configured to name files with **day** or **minute**
 granularity in a directory (and its subdirectories) via the placement of
@@ -83,25 +83,58 @@ this option is not set, the script will default to `day` granularity.
 > at runtime to prevent a misconfiguration from renaming files in a way that
 > could be destructive.
 
-## Usage
+## Installation
 
-Invoke the script with arguments including directory names and file
-names:
+### For exploration
+
+No installation is necessary. Simply clone the repository and run with uv directly:
 
 ```bash
-autorename.py [--commit] <files | directories...>
+uv run /path/to/autorename/autorename.py [--commit] <files | directories...>
+```
+
+### For development
+
+Clone the repository and install with uv:
+
+```bash
+uv sync --extra dev
+```
+
+### For system-wide usage
+
+Install the package using pip:
+
+```bash
+pip install .
+```
+
+## Usage
+
+Invoke the command with directory names or file names:
+
+```bash
+autorename [--commit] <files | directories...>
 ```
 
 For example:
 
-First, run in dryrun mode (default) to see what it would do:
+First, run in dry-run mode (default) to see what it would do:
 
 ```bash
-python ./autorename.py ~/Clippings
+autorename ~/Clippings
 ```
 
 Then, run with `--commit` to actually rename the files:
 
 ```bash
-python ./autorename.py --commit ~/Clippings
+autorename --commit ~/Clippings
+```
+
+### Development Usage
+
+When developing, use `uv run` to execute the command:
+
+```bash
+uv run autorename ~/Clippings
 ```
