@@ -196,6 +196,11 @@ def test_generate_filename_already_correct(
     assert new_name == expected_filename
 
 
+# ----------------------------------------------------------------------
+# Test extension handling
+# ----------------------------------------------------------------------
+
+
 def test_generate_filename_rename_extension_jpg(
     mock_setup: tuple[Any, Any, Any, Any],
 ) -> None:
@@ -207,6 +212,19 @@ def test_generate_filename_rename_extension_jpg(
 
     # Assert
     assert new_name == f"{EXPECTED_DATE_PREFIX}-d41d8cd98f.jpg"
+
+
+def test_generate_filename_case_insensitive_extension(
+    mock_setup: tuple[Any, Any, Any, Any],
+) -> None:
+    """Test that extensions are matched case-insensitively."""
+    # Arrange: mock_setup provides file mocking
+
+    # Act: test uppercase extension
+    new_name = autorename.generate_filename("/path/does/not/exist", "filename.PNG")
+
+    # Assert: should still generate filename with lowercase extension
+    assert new_name == f"{EXPECTED_DATE_PREFIX}-d41d8cd98f.png"
 
 
 # ----------------------------------------------------------------------
@@ -347,6 +365,37 @@ def test_process_remove_ds_store(
 
     # Assert
     mock_os_remove.assert_called_once_with("/path/does/not/exist/.DS_Store")
+
+
+# ----------------------------------------------------------------------
+# Test dryrun mode
+# ----------------------------------------------------------------------
+
+
+def test_process_filename_png_dryrun(
+    mock_setup: tuple[Any, Any, Any, Any], mock_os_rename: Any
+) -> None:
+    """Test that dryrun mode does not actually rename files."""
+    # Arrange: mock_setup provides file mocking, mock_os_rename mocks rename
+
+    # Act: /path/does/not/exist/filename.png with dryrun=True
+    autorename.process_file("/path/does/not/exist", "filename.png", dryrun=True)
+
+    # Assert: os.rename should NOT be called
+    mock_os_rename.assert_not_called()
+
+
+def test_process_remove_ds_store_dryrun(
+    mock_setup: tuple[Any, Any, Any, Any], mock_os_remove: Any
+) -> None:
+    """Test that dryrun mode does not actually remove files."""
+    # Arrange: mock_setup provides file mocking, mock_os_remove mocks remove
+
+    # Act: /path/does/not/exist/.DS_Store with dryrun=True
+    autorename.process_file("/path/does/not/exist", ".DS_Store", dryrun=True)
+
+    # Assert: os.remove should NOT be called
+    mock_os_remove.assert_not_called()
 
 
 # ----------------------------------------------------------------------
