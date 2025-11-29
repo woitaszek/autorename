@@ -69,10 +69,10 @@ def mock_os_remove(mocker: MockerFixture) -> Any:
 
 
 # ----------------------------------------------------------------------
-# Tests for auto_name_file function
+# Parameterized tests for filename generation
 # ----------------------------------------------------------------------
 
-# The auto_name_file function takes a path and filename and returns
+# The generate_filename function takes a path and filename and returns
 # the desired new filename. As such, it is non-destructive; it reads the
 # provided filename variables and the file's os.stat() metadata and contents,
 # but does not perform any modifications to the filesystem.
@@ -234,52 +234,46 @@ def test_generate_filename_case_insensitive_extension(
 
 def test_config_file_invalid_secion(tmp_path: Any) -> None:
     """Test a configuration file with an invalid section."""
-
-    # Create an empty "jpg" file in the test directory
+    # Arrange: create config file with invalid section
     jpg_file = tmp_path / "empty.jpg"
     jpg_file.touch()
 
-    # Create the ".autorename.ini" file in the test directory
     ini_file = tmp_path / ".autorename.ini"
     with ini_file.open("w") as f:
         f.write("[invalid]\nplaceholder = invalid\n")
 
-    # Check that the configuration file read raises an exception
-    with pytest.raises(Exception):
+    # Act & Assert: should raise ValueError for missing autorename section
+    with pytest.raises(ValueError):
         autorename.get_directory_config(tmp_path)
 
 
 def test_config_file_invalid_value(tmp_path: Any) -> None:
     """Test a configuration file with an invalid value."""
-
-    # Create an empty "jpg" file in the test directory
+    # Arrange: create config file with invalid prefix_timestamp value
     jpg_file = tmp_path / "empty.jpg"
     jpg_file.touch()
 
-    # Create the ".autorename.ini" file in the test directory
     ini_file = tmp_path / ".autorename.ini"
     with ini_file.open("w") as f:
         f.write("[autorename]\nprefix_timestamp = invalid\n")
 
-    # Check that the configuration file read raises an exception
-    with pytest.raises(Exception):
+    # Act & Assert: should raise ValueError for invalid value
+    with pytest.raises(ValueError):
         autorename.get_directory_config(tmp_path)
 
 
 def test_config_file_invalid_key(tmp_path: Any) -> None:
     """Test a configuration file with an invalid key."""
-
-    # Create an empty "jpg" file in the test directory
+    # Arrange: create config file with missing required prefix_timestamp key
     jpg_file = tmp_path / "empty.jpg"
     jpg_file.touch()
 
-    # Create the ".autorename.ini" file in the test directory
     ini_file = tmp_path / ".autorename.ini"
     with ini_file.open("w") as f:
         f.write("[autorename]\ninvalid_key = invalid\n")
 
-    # Check that the configuration file read raises an exception
-    with pytest.raises(Exception):
+    # Act & Assert: should raise ValueError for missing required key
+    with pytest.raises(ValueError):
         autorename.get_directory_config(tmp_path)
 
 
