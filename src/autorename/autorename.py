@@ -249,6 +249,25 @@ def generate_filename(path: str, filename: str) -> str | None:
 # ----------------------------------------------------------------------
 
 
+def format_size(size_bytes: int) -> str:
+    """Format a file size in bytes to a human-readable string.
+
+    Args:
+        size_bytes: The size in bytes to format.
+
+    Returns:
+        A formatted string like "1.5 MB" or "512 bytes".
+    """
+    if size_bytes < 1024:
+        return f"{size_bytes} bytes"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
+
+
 def traverse(target: str, dryrun: bool = True) -> None:
     """Traverse and process files or directories.
 
@@ -318,16 +337,24 @@ def process_directory(path: str, dryrun: bool = True) -> None:
         raise FileNotFoundError(path)
 
     # Build the list of the files in the directory, capturing the
-    # maximum filename length and the number of files in the directory
+    # maximum filename length, the number of files, and total size
     max_filename_length = 0
+    total_size = 0
     filelist = []
     for filename in os.listdir(path):
-        if not os.path.isfile(os.path.join(path, filename)):
+        filepath = os.path.join(path, filename)
+        if not os.path.isfile(filepath):
             continue
         filelist.append((path, filename))
         max_filename_length = max(max_filename_length, len(filename))
+        total_size += os.path.getsize(filepath)
 
-    logger.info("Processing directory '%s' (%i files)", path, len(filelist))
+    logger.info(
+        "Processing directory '%s' (%i files, %s)",
+        path,
+        len(filelist),
+        format_size(total_size),
+    )
 
     # Process each file in the directory
     for path, filename in filelist:
