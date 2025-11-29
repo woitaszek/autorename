@@ -81,8 +81,10 @@ def test_generate_filename_png(mock_setup: tuple[Any, Any, Any, Any]) -> None:
 
 def test_generate_filename_hash_png(mock_setup: tuple[Any, Any, Any, Any]) -> None:
     """Test filename generation with a changed hash."""
-    # /path/does/not/exist/filename-HASH.png
-    new_name = autorename.generate_filename("/path/does/not/exist", "filename.png")
+    # /path/does/not/exist/2010-01-02-b1946ac924.png -> d41d8cd98f
+    new_name = autorename.generate_filename(
+        "/path/does/not/exist", "2010-01-02-b1946ac924.png"
+    )
     assert new_name == "2010-01-02-d41d8cd98f.png"
 
 
@@ -95,9 +97,30 @@ def test_generate_filename_unexpected_extension(
     assert new_name is None
 
 
-def test_generate_filename_skip_prefix(mock_setup: tuple[Any, Any, Any, Any]) -> None:
+def test_generate_filename_skip_prefix_day(
+    mock_setup: tuple[Any, Any, Any, Any], mocker: MockerFixture
+) -> None:
     """Test skipping files that start with yyyy-mm-dd prefix and space."""
+    # Mock the directory config to return day granularity (or None for default)
+    mock_config = {"prefix_timestamp": "day"}
+    mocker.patch("autorename.autorename.get_directory_config", return_value=mock_config)
+
+    # Test that files with day prefix are skipped (allows any chars for day)
     for filename in ("2022-01-01 filename.png", "2022-01-XX filename.png"):
+        new_name = autorename.generate_filename("/path/does/not/exist", filename)
+        assert new_name is None
+
+
+def test_generate_filename_skip_prefix_minute(
+    mock_setup: tuple[Any, Any, Any, Any], mocker: MockerFixture
+) -> None:
+    """Test skipping files with minute granularity prefix."""
+    # Mock the directory config to return minute granularity
+    mock_config = {"prefix_timestamp": "minute"}
+    mocker.patch("autorename.autorename.get_directory_config", return_value=mock_config)
+
+    # Test that files with minute prefix are skipped (allows any chars for day/minute)
+    for filename in ("2022-01-01-1234 filename.png", "2022-01-XX-12XX filename.png"):
         new_name = autorename.generate_filename("/path/does/not/exist", filename)
         assert new_name is None
 

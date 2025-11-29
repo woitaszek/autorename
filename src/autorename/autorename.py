@@ -44,9 +44,11 @@ logger = logging.getLogger(__name__)
 
 
 # Regular expression for detecting manually-named files that should not
-# be renamed; these start with yyyy-mm-XX and then have a space followed
-# by non-space character(s). Note that we allow characters other than
-# digits in the day field.
+# be renamed. We allow characters other than digits in the day and minute
+# fields.
+# - Day granularity: yyyy-mm-XX followed by space and non-space character(s).
+# - Minute granularity: yyyy-mm-dd-XXXX followed by space and non-space
+#   character(s).
 re_prefix_day = re.compile(
     r"""
        \d\d\d\d-\d\d-\S\S[ ]\S+
@@ -55,7 +57,7 @@ re_prefix_day = re.compile(
 )
 re_prefix_minute = re.compile(
     r"""
-         \d\d\d\d-\d\d-\d\d\d\d[ ]\S+
+         \d\d\d\d-\d\d-\S\S-\S\S\S\S[ ]\S+
     """,
     re.VERBOSE,
 )

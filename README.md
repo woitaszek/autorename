@@ -12,6 +12,8 @@ This script turns an unwieldy tree of bizarrely-named files into a tree with fil
 
 Features:
 
+- Recognizes specific file extensions and renames them accordingly. Skips the rest.
+
 - Renames files to a name based on the file's modification time and md5 hash. For example:
 
   ```text
@@ -29,13 +31,22 @@ Features:
 
 - Supports naming files with **day** or **minute** granularity in a directory (and its subdirectories) via the placement of `.autorename.ini` configuration files.
 
-- Recognizes specific file extensions and renames them accordingly. Skips the rest.
+  The `prefix_timestamp` option can be set to either `day` or `minute`. If this option is not set, the script will default to `day` granularity.
 
-- Can be run in a dry-run mode to see what it would do without actually doing anything.
+  | Option | Example                        |
+  |--------|--------------------------------|
+  | day    | 2020-01-01-98ecf8427e.jpg      |
+  | minute | 2020-01-01-1234-98ecf8427e.jpg |
 
-- Skips files that start with prefixes that look like dates and words, such as `2020-01-01 My Picture.jpg` or `2020-01-XX My Picture.jpg`. This way, if you had renamed files to get them "close enough" to date ordering but with descriptive file names, they won't get renamed.
+- Skips files that start with valid prefixes that look like dates and words. The format depends on the directory configuration:
+  - With **day** granularity (default), skips files like `2020-01-01 My Picture.jpg` or `2020-01-XX My Picture.jpg`.
+  - With **minute** granularity, skips files like `2020-01-01-1234 My Picture.jpg` or `2020-01-XX-12XX My Picture.jpg`.
+  
+  This way, if you had renamed files to get them "close enough" to date ordering but with descriptive file names, they won't get renamed.
 
 - Deletes all those `.DS_Store` files that macOS likes to create.
+
+- Can be run in a dry-run mode to see what it would do without actually doing anything.
 
 ## In-Place Configuration
 
@@ -47,13 +58,6 @@ The configuration file is a simple INI file with the following format:
 [autorename]
 prefix_timestamp = <day | minute>
 ```
-
-The `prefix_timestamp` option can be set to either `day` or `minute`. If this option is not set, the script will default to `day` granularity.
-
-| Option | Example                        |
-|--------|--------------------------------|
-| day    | 2020-01-01-98ecf8427e.jpg      |
-| minute | 2020-01-01-1234-98ecf8427e.jpg |
 
 > 💡 **Note:** In the future, it would be great to support the configuration of arbitrary prefix format configurations, but that's a real pain to test at runtime to prevent a misconfiguration from renaming files in a way that could be destructive.
 
