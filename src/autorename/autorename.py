@@ -8,8 +8,13 @@ import hashlib
 import os
 import re
 import configparser
+import zoneinfo
 
 from typing import Literal, TypedDict
+
+# Timezone configuration
+# This ensures consistent timestamp handling across different systems
+TIMEZONE = zoneinfo.ZoneInfo("America/Los_Angeles")  # Pacific Time
 
 
 class DirectoryConfig(TypedDict):
@@ -212,9 +217,11 @@ def generate_filename(path: str, filename: str) -> str | None:
         # logger.debug('  Skipping valid prefix:    %s', filename)
         return None
 
-    # Get the file's modification time and compute the MD5 hash
+    # Get the file's modification time in the set time zone
     mtime_seconds = os.stat(filepath).st_mtime
     mtime_datetime = datetime.datetime.fromtimestamp(mtime_seconds)
+
+    # Compute the MD5 hash of the file
     hash_md5 = hashlib.md5()
     with open(filepath, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):

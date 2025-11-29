@@ -12,6 +12,7 @@ import pytest
 
 # Target imports
 from autorename import autorename
+from autorename.autorename import TIMEZONE
 
 
 # ----------------------------------------------------------------------
@@ -28,10 +29,15 @@ OS_STAT_RESULT = os.stat_result(
         0,  # st_gid
         0,  # st_size
         0,  # st_atime
-        1262430245,  # st_mtime  2010-01-02 10:10:45
+        1262430245,  # st_mtime  2010-01-02 10:10:45 UTC
         0,  # st_ctime
     ]
 )
+
+# Calculate expected timestamp strings using the configured timezone
+MOCK_MTIME = datetime.datetime.fromtimestamp(1262430245, tz=TIMEZONE)
+EXPECTED_DATE_PREFIX = MOCK_MTIME.strftime("%Y-%m-%d")
+EXPECTED_DATETIME_PREFIX = MOCK_MTIME.strftime("%Y-%m-%d-%H%M")
 
 
 @pytest.fixture
@@ -76,16 +82,16 @@ def test_generate_filename_png(mock_setup: tuple[Any, Any, Any, Any]) -> None:
     """Test filename generation for a file that matches an expected suffix."""
     # /path/does/not/exist/filename.png
     new_name = autorename.generate_filename("/path/does/not/exist", "filename.png")
-    assert new_name == "2010-01-02-d41d8cd98f.png"
+    assert new_name == f"{EXPECTED_DATE_PREFIX}-d41d8cd98f.png"
 
 
 def test_generate_filename_hash_png(mock_setup: tuple[Any, Any, Any, Any]) -> None:
     """Test filename generation with a changed hash."""
-    # /path/does/not/exist/2010-01-02-b1946ac924.png -> d41d8cd98f
+    # /path/does/not/exist/YYYY-MM-DD-OLDHASH.png -> YYYY-MM-DD-NEWHASH.png
     new_name = autorename.generate_filename(
-        "/path/does/not/exist", "2010-01-02-b1946ac924.png"
+        "/path/does/not/exist", f"{EXPECTED_DATE_PREFIX}-b1946ac924.png"
     )
-    assert new_name == "2010-01-02-d41d8cd98f.png"
+    assert new_name == f"{EXPECTED_DATE_PREFIX}-d41d8cd98f.png"
 
 
 def test_generate_filename_unexpected_extension(
@@ -125,6 +131,34 @@ def test_generate_filename_skip_prefix_minute(
         assert new_name is None
 
 
+def test_generate_filename_already_correct_day(
+    mock_setup: tuple[Any, Any, Any, Any], mocker: MockerFixture
+) -> None:
+    """Test skipping files that are already correctly named with day granularity."""
+    # Mock the directory config to return day granularity
+    mock_config = {"prefix_timestamp": "day"}
+    mocker.patch("autorename.autorename.get_directory_config", return_value=mock_config)
+
+    # File is already named correctly - should return the same name
+    expected_filename = f"{EXPECTED_DATE_PREFIX}-d41d8cd98f.png"
+    new_name = autorename.generate_filename("/path/does/not/exist", expected_filename)
+    assert new_name == expected_filename
+
+
+def test_generate_filename_already_correct_minute(
+    mock_setup: tuple[Any, Any, Any, Any], mocker: MockerFixture
+) -> None:
+    """Test skipping files that are already correctly named with minute granularity."""
+    # Mock the directory config to return minute granularity
+    mock_config = {"prefix_timestamp": "minute"}
+    mocker.patch("autorename.autorename.get_directory_config", return_value=mock_config)
+
+    # File is already named correctly - should return the same name
+    expected_filename = f"{EXPECTED_DATETIME_PREFIX}-d41d8cd98f.png"
+    new_name = autorename.generate_filename("/path/does/not/exist", expected_filename)
+    assert new_name == expected_filename
+
+
 def test_generate_filename_rename_extension_jpg(
     mock_setup: tuple[Any, Any, Any, Any],
 ) -> None:
@@ -132,7 +166,7 @@ def test_generate_filename_rename_extension_jpg(
     # Test renaming a file that matches an expected suffix:
     # /path/does/not/exist/filename.jpeg -> .jpg
     new_name = autorename.generate_filename("/path/does/not/exist", "filename.jpeg")
-    assert new_name == "2010-01-02-d41d8cd98f.jpg"
+    assert new_name == f"{EXPECTED_DATE_PREFIX}-d41d8cd98f.jpg"
 
 
 # ----------------------------------------------------------------------
@@ -208,7 +242,7 @@ def test_config_file_hierarchy(tmp_path: Any) -> None:
 
     # Get the mtime of the jpg file and create the expected filename
     mtime_seconds = os.stat(jpg_file).st_mtime
-    mtime_datetime = datetime.datetime.fromtimestamp(mtime_seconds)
+    mtime_datetime = datetime.datetime.fromtimestamp(mtime_seconds, tz=TIMEZONE)
     expected_filename = mtime_datetime.strftime("%Y-%m-%d-%H%M-") + "253bcac7dd.jpg"
     # Check that the configuration file is read when starting in the
     # test directory
@@ -251,7 +285,7 @@ def test_process_filename_png(
     autorename.process_file("/path/does/not/exist", "filename.png", dryrun=False)
     mock_os_rename.assert_called_once_with(
         "/path/does/not/exist/filename.png",
-        "/path/does/not/exist/2010-01-02-d41d8cd98f.png",
+        f"/path/does/not/exist/{EXPECTED_DATE_PREFIX}-d41d8cd98f.png",
     )
 
 
