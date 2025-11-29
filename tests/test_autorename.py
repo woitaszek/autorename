@@ -4,6 +4,7 @@
 import os
 import logging
 import datetime
+import hashlib
 from typing import Any
 from pytest_mock import MockerFixture
 
@@ -390,6 +391,54 @@ def test_process_remove_ds_store_dryrun(
 
     # Assert: os.remove should NOT be called
     mock_os_remove.assert_not_called()
+
+
+# ----------------------------------------------------------------------
+# Test traverse function
+# ----------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "granularity,format_str",
+    [
+        (None, "%Y-%m-%d"),
+        ("day", "%Y-%m-%d"),
+        ("minute", "%Y-%m-%d-%H%M"),
+    ],
+)
+def test_traverse_single_file(
+    tmp_path: Any, granularity: str | None, format_str: str
+) -> None:
+    """Test traversing and processing a single file."""
+    # Arrange: create a test file with known content
+    test_file = tmp_path / "test.png"
+    test_content = b"test content"
+    with test_file.open("wb") as f:
+        f.write(test_content)
+
+    # Create config file if granularity is specified
+    if granularity is not None:
+        ini_file = tmp_path / ".autorename.ini"
+        with ini_file.open("w") as f:
+            f.write(f"[autorename]\nprefix_timestamp = {granularity}\n")
+
+    # Calculate expected filename based on actual file stats
+    mtime_seconds = os.stat(test_file).st_mtime
+    mtime_datetime = datetime.datetime.fromtimestamp(mtime_seconds, tz=TIMEZONE)
+    expected_prefix = mtime_datetime.strftime(format_str)
+
+    # Calculate expected hash
+    hash_md5 = hashlib.md5()
+    hash_md5.update(test_content)
+    expected_hash = hash_md5.hexdigest()[0:10]
+    expected_filename = f"{expected_prefix}-{expected_hash}.png"
+
+    # Act: traverse the single file
+    autorename.traverse(str(test_file), dryrun=False)
+
+    # Assert: file should be renamed
+    assert not test_file.exists()
+    assert (tmp_path / expected_filename).exists()
 
 
 # ----------------------------------------------------------------------
