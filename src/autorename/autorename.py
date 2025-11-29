@@ -9,10 +9,17 @@ import os
 import re
 import configparser
 
-from typing import Union
+from typing import Literal, TypedDict
+
+
+class DirectoryConfig(TypedDict):
+    """Configuration for autorename directory settings."""
+
+    prefix_timestamp: Literal["minute", "day"]
+
 
 # Extensions to be renamed
-EXTENSIONS = [
+EXTENSIONS: list[str] = [
     "jpg",
     "jpeg",
     "gif",
@@ -62,20 +69,26 @@ re_prefix_minute = re.compile(
 # For each path, we look for a file called .autorename.ini. If it exists,
 # we read the configuration from that file and cache it for quick retrievals.
 
-cached_directory_config = {}
+cached_directory_config: dict[str, DirectoryConfig | None] = {}
 
 
-def get_directory_config(target_dir: str) -> dict:
-    """
-    Get the directory configuration for the autorename script.
+def get_directory_config(target_dir: str) -> DirectoryConfig | None:
+    """Get the directory configuration for the autorename script.
 
-    Look for a file called .autorename.ini in the specified directory,
-    and if it exists, read the configuration from that file.
-    Return a dictionary with the configuration values.
+    Searches for a .autorename.ini file in the specified directory and its
+    parent directories. The configuration file should contain an [autorename]
+    section with a prefix_timestamp option set to either 'minute' or 'day'.
 
-    The configuration file should be in the following format:
-    [autorename]
-    prefix_timestamp = minute | day
+    Args:
+        target_dir: The directory path to search for configuration.
+
+    Returns:
+        A DirectoryConfig dict with configuration values, or None if no
+        configuration file is found or the directory doesn't exist.
+
+    Raises:
+        ValueError: If the configuration file is missing required sections,
+            options, or has invalid values.
     """
 
     # If the directory configuration has already been read, return it
@@ -110,27 +123,30 @@ def get_directory_config(target_dir: str) -> dict:
 
     # Check if the configuration file has the expected section and options
     if "autorename" not in config:
-        raise Exception(
+        raise ValueError(
             f"Configuration file '{found_config_file}' does not have the "
             f"'autorename' section"
         )
     if "prefix_timestamp" not in config["autorename"]:
-        raise Exception(
+        raise ValueError(
             f"Configuration file '{found_config_file}' does not have the "
             f"'prefix_timestamp' option"
         )
     if config["autorename"]["prefix_timestamp"] not in ["minute", "day"]:
-        raise Exception(
+        raise ValueError(
             f"Configuration file '{found_config_file}' has invalid "
             f"'prefix_timestamp' option: "
             f"{config['autorename']['prefix_timestamp']}"
         )
 
     # Store the configuration in the cache
-    config = {"prefix_timestamp": config["autorename"]["prefix_timestamp"]}
-    cached_directory_config[target_dir] = config
+    prefix_value = config["autorename"]["prefix_timestamp"]
+    directory_config: DirectoryConfig = {
+        "prefix_timestamp": prefix_value  # type: ignore[typeddict-item]
+    }
+    cached_directory_config[target_dir] = directory_config
 
-    return config
+    return directory_config
 
 
 # ----------------------------------------------------------------------
@@ -138,21 +154,24 @@ def get_directory_config(target_dir: str) -> dict:
 # ----------------------------------------------------------------------
 
 
-def generate_filename(path: str, filename: str) -> Union[str, None]:
-    """
-    Generate and return the new desired filename for the specified file.
+def generate_filename(path: str, filename: str) -> str | None:
+    """Generate the new desired filename for the specified file.
 
-    If the file is not to be renamed, return None.
+    Creates a new filename in the format 'YYYY-MM-DD-HASH.ext' or
+    'YYYY-MM-DD-HHMM-HASH.ext' based on the file's modification time
+    and MD5 hash. Files that already have a valid prefix or unsupported
+    extensions are skipped by returning None.
 
-    The specified file must exist and be a regular file. The
-    specified file's metadata is retrieved using os.stat(), and the
-    contents are read to compute the MD5 hash. Note that the file is
-    not renamed in this routine; the caller is responsible for
-    renaming the file.
+    Args:
+        path: The directory path containing the file.
+        filename: The name of the file to potentially rename.
 
-    Arguments:
-        path: The path to the file
-        filename: The filename of the file
+    Returns:
+        The new filename with timestamp prefix, or None if the file
+        should not be renamed.
+
+    Raises:
+        AssertionError: If the file does not exist or is not a regular file.
     """
 
     filepath = os.path.join(path, filename)
@@ -163,15 +182,15 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
     directory_config = get_directory_config(path)
 
     # Check to see if the file has a valid extension for renaming
-    f = filename.lower()
+    filename_lower = filename.lower()
     extension = None
     for e in EXTENSIONS:
-        if f.endswith("." + e):
+        if filename_lower.endswith("." + e):
             extension = e
             break
 
     # Manual overrides
-    if f.endswith(".jpeg"):
+    if filename_lower.endswith(".jpeg"):
         extension = "jpg"
 
     # Skip files that don't have a valid extension
@@ -221,12 +240,17 @@ def generate_filename(path: str, filename: str) -> Union[str, None]:
 # ----------------------------------------------------------------------
 
 
-def traverse(target, dryrun=True):
-    """
-    Traverse the specified command line arguments.
+def traverse(target: str, dryrun: bool = True) -> None:
+    """Traverse and process files or directories.
 
-    If the argument is a directory, traverse the directory recursively.
-    If the argument is a file, process the file.
+    If the target is a directory, recursively processes all files within it.
+    If the target is a file, processes just that file. Non-existent targets
+    are skipped with a warning.
+
+    Args:
+        target: Path to a file or directory to process.
+        dryrun: If True, only simulate renames without making changes.
+            Defaults to True.
     """
 
     # Skip things that don't exist
@@ -265,9 +289,19 @@ def traverse(target, dryrun=True):
     )
 
 
-def process_directory(path, dryrun=True):
-    """
-    Process the specified directory.
+def process_directory(path: str, dryrun: bool = True) -> None:
+    """Process all files in the specified directory.
+
+    Iterates through all regular files in the directory and processes each
+    one for potential renaming.
+
+    Args:
+        path: The directory path to process.
+        dryrun: If True, only simulate renames without making changes.
+            Defaults to True.
+
+    Raises:
+        FileNotFoundError: If the directory does not exist.
     """
 
     # Check that the target directory exists
@@ -291,12 +325,28 @@ def process_directory(path, dryrun=True):
         process_file(path, filename, dryrun, max_filename_length=max_filename_length)
 
 
-def process_file(path, filename, dryrun=True, max_filename_length=0):
-    """
-    Process the specified file.
+def process_file(
+    path: str, filename: str, dryrun: bool = True, max_filename_length: int = 0
+) -> bool:
+    """Process a single file for potential renaming.
 
-    Return True if the file was renamed, False if the file was not
-    renamed.
+    Checks if the file should be renamed based on its current name and
+    extension. Special handling for .DS_Store files (deletion). If renaming
+    is needed, either performs or simulates the rename based on dryrun mode.
+
+    Args:
+        path: The directory path containing the file.
+        filename: The name of the file to process.
+        dryrun: If True, only simulate changes without making them.
+            Defaults to True.
+        max_filename_length: Maximum filename length for formatting output.
+            Defaults to 0.
+
+    Returns:
+        True if the file was renamed or deleted, False otherwise.
+
+    Raises:
+        FileNotFoundError: If the file does not exist.
     """
 
     # Check that the source file exists
@@ -351,8 +401,12 @@ def process_file(path, filename, dryrun=True, max_filename_length=0):
 # ----------------------------------------------------------------------
 
 
-def main():
-    """Main entry point for the autorename command-line tool."""
+def main() -> None:
+    """Main entry point for the autorename command-line tool.
+
+    Parses command-line arguments and processes all specified files and
+    directories. Runs in dry-run mode by default unless --commit is specified.
+    """
     parser = argparse.ArgumentParser(
         description="Rename specified files to 'YYYY-MM-DD-HASH.ext'"
     )
