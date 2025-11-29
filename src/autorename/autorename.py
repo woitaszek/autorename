@@ -219,7 +219,7 @@ def generate_filename(path: str, filename: str) -> str | None:
 
     # Get the file's modification time in the set time zone
     mtime_seconds = os.stat(filepath).st_mtime
-    mtime_datetime = datetime.datetime.fromtimestamp(mtime_seconds)
+    mtime_datetime = datetime.datetime.fromtimestamp(mtime_seconds, tz=TIMEZONE)
 
     # Compute the MD5 hash of the file
     hash_md5 = hashlib.md5()
