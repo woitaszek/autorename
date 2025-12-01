@@ -393,6 +393,39 @@ def test_process_remove_ds_store_dryrun(
     mock_os_remove.assert_not_called()
 
 
+def test_process_skip_unsupported_extension(
+    mock_setup: tuple[Any, Any, Any, Any], mock_os_rename: Any
+) -> None:
+    """Test that files with unsupported extensions are skipped."""
+    # Arrange: mock_setup provides file mocking, mock_os_rename mocks rename
+
+    # Act: /path/does/not/exist/filename.dat with unsupported extension
+    result = autorename.process_file(
+        "/path/does/not/exist", "filename.dat", dryrun=False
+    )
+
+    # Assert: should return False and not call os.rename
+    assert result is False
+    mock_os_rename.assert_not_called()
+
+
+def test_process_skip_already_correct_name(
+    mock_setup: tuple[Any, Any, Any, Any], mock_os_rename: Any
+) -> None:
+    """Test that files already having the correct name are skipped."""
+    # Arrange: mock_setup provides file mocking, mock_os_rename mocks rename
+    # Use a filename that already matches the expected format
+
+    # Act: filename that already has the correct format
+    result = autorename.process_file(
+        "/path/does/not/exist", f"{EXPECTED_DATE_PREFIX}-d41d8cd98f.png", dryrun=False
+    )
+
+    # Assert: should return False and not call os.rename
+    assert result is False
+    mock_os_rename.assert_not_called()
+
+
 # ----------------------------------------------------------------------
 # Test traverse function
 # ----------------------------------------------------------------------
@@ -439,6 +472,177 @@ def test_traverse_single_file(
     # Assert: file should be renamed
     assert not test_file.exists()
     assert (tmp_path / expected_filename).exists()
+
+
+# ----------------------------------------------------------------------
+# Test format_size function
+# ----------------------------------------------------------------------
+
+
+def test_format_size_bytes() -> None:
+    """Test formatting file sizes in bytes."""
+    assert autorename.format_size(0) == "0 bytes"
+    assert autorename.format_size(512) == "512 bytes"
+    assert autorename.format_size(1023) == "1023 bytes"
+
+
+def test_format_size_kilobytes() -> None:
+    """Test formatting file sizes in kilobytes."""
+    assert autorename.format_size(1024) == "1.0 KB"
+    assert autorename.format_size(2048) == "2.0 KB"
+    assert autorename.format_size(1536) == "1.5 KB"
+
+
+def test_format_size_megabytes() -> None:
+    """Test formatting file sizes in megabytes."""
+    assert autorename.format_size(1024 * 1024) == "1.0 MB"
+    assert autorename.format_size(2 * 1024 * 1024) == "2.0 MB"
+    assert autorename.format_size(1536 * 1024) == "1.5 MB"
+
+
+def test_format_size_gigabytes() -> None:
+    """Test formatting file sizes in gigabytes."""
+    assert autorename.format_size(1024 * 1024 * 1024) == "1.0 GB"
+    assert autorename.format_size(2 * 1024 * 1024 * 1024) == "2.0 GB"
+
+
+# ----------------------------------------------------------------------
+# Test traverse function edge cases
+# ----------------------------------------------------------------------
+
+
+def test_traverse_nonexistent_target() -> None:
+    """Test traversing a non-existent target."""
+    # Act & Assert: should log warning and return without error
+    autorename.traverse("/path/that/does/not/exist", dryrun=True)
+
+
+def test_traverse_directory(tmp_path: Any) -> None:
+    """Test traversing a directory with multiple files."""
+    # Arrange: create multiple files
+    (tmp_path / "file1.png").write_bytes(b"content1")
+    (tmp_path / "file2.jpg").write_bytes(b"content2")
+    (tmp_path / "ignored.txt").write_bytes(b"ignored")  # unsupported extension
+
+    # Act: traverse the directory
+    autorename.traverse(str(tmp_path), dryrun=False)
+
+    # Assert: PNG and JPG files should be renamed, TXT file should remain
+    assert not (tmp_path / "file1.png").exists()
+    assert not (tmp_path / "file2.jpg").exists()
+    assert (tmp_path / "ignored.txt").exists()  # txt not renamed
+    assert len(list(tmp_path.glob("2025-*.png"))) == 1
+    assert len(list(tmp_path.glob("2025-*.jpg"))) == 1
+
+
+def test_traverse_directory_with_subdirectories(tmp_path: Any) -> None:
+    """Test traversing a directory tree with subdirectories."""
+    # Arrange: create subdirectory with files
+    subdir = tmp_path / "subdir"
+    subdir.mkdir()
+    (tmp_path / "root.png").write_bytes(b"root content")
+    (subdir / "sub.png").write_bytes(b"sub content")
+
+    # Act: traverse the root directory
+    autorename.traverse(str(tmp_path), dryrun=False)
+
+    # Assert: files in both root and subdirectory should be renamed
+    assert not (tmp_path / "root.png").exists()
+    assert not (subdir / "sub.png").exists()
+    assert len(list(tmp_path.glob("2025-*.png"))) == 1
+    assert len(list(subdir.glob("2025-*.png"))) == 1
+
+
+# ----------------------------------------------------------------------
+# Test process_directory edge cases
+# ----------------------------------------------------------------------
+
+
+def test_process_directory_nonexistent() -> None:
+    """Test process_directory raises FileNotFoundError for non-existent path."""
+    with pytest.raises(FileNotFoundError):
+        autorename.process_directory("/path/does/not/exist", dryrun=True)
+
+
+def test_process_directory_with_subdirectories(tmp_path: Any) -> None:
+    """Test that process_directory skips subdirectories."""
+    # Arrange: create files and subdirectory
+    (tmp_path / "file.png").write_bytes(b"content")
+    subdir = tmp_path / "subdir"
+    subdir.mkdir()
+    (subdir / "nested.png").write_bytes(b"nested")
+
+    # Act: process only the root directory
+    autorename.process_directory(str(tmp_path), dryrun=False)
+
+    # Assert: only root file should be renamed, subdirectory should be skipped
+    assert len(list(tmp_path.glob("file.png"))) == 0
+    assert len(list(tmp_path.glob("2025-*.png"))) == 1
+    # Nested file should still exist with original name
+    assert (subdir / "nested.png").exists()
+
+
+# ----------------------------------------------------------------------
+# Test main function
+# ----------------------------------------------------------------------
+
+
+def test_main_dryrun_default(tmp_path: Any, monkeypatch: Any) -> None:
+    """Test main function with default dryrun mode."""
+    # Arrange: create test file
+    test_file = tmp_path / "test.png"
+    test_file.write_bytes(b"content")
+
+    # Mock sys.argv
+    monkeypatch.setattr("sys.argv", ["autorename", str(test_file)])
+
+    # Act: run main
+    autorename.main()
+
+    # Assert: file should NOT be renamed (dryrun mode)
+    assert test_file.exists()
+
+
+def test_main_commit_mode(tmp_path: Any, monkeypatch: Any) -> None:
+    """Test main function with --commit flag."""
+    # Arrange: create test file
+    test_file = tmp_path / "test.png"
+    test_file.write_bytes(b"content")
+
+    # Mock sys.argv
+    monkeypatch.setattr("sys.argv", ["autorename", "--commit", str(test_file)])
+
+    # Act: run main
+    autorename.main()
+
+    # Assert: file should be renamed (commit mode)
+    assert not test_file.exists()
+    assert len(list(tmp_path.glob("2025-*.png"))) == 1
+
+
+def test_main_multiple_targets(tmp_path: Any, monkeypatch: Any) -> None:
+    """Test main function with multiple target arguments."""
+    # Arrange: create multiple test files in different directories
+    dir1 = tmp_path / "dir1"
+    dir2 = tmp_path / "dir2"
+    dir1.mkdir()
+    dir2.mkdir()
+    file1 = dir1 / "test1.png"
+    file2 = dir2 / "test2.jpg"
+    file1.write_bytes(b"content1")
+    file2.write_bytes(b"content2")
+
+    # Mock sys.argv with multiple targets
+    monkeypatch.setattr("sys.argv", ["autorename", "--commit", str(file1), str(file2)])
+
+    # Act: run main
+    autorename.main()
+
+    # Assert: both files should be renamed
+    assert not file1.exists()
+    assert not file2.exists()
+    assert len(list(dir1.glob("2025-*.png"))) == 1
+    assert len(list(dir2.glob("2025-*.jpg"))) == 1
 
 
 # ----------------------------------------------------------------------
