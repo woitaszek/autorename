@@ -87,6 +87,26 @@ Install the package using pip:
 pip install .
 ```
 
+### For packaging and distribution
+
+To create a distributable package that can be copied to another computer:
+
+1. Build the package:
+
+   ```bash
+   uv build
+   ```
+
+2. This creates distribution files in the `dist/` directory:
+   - `autorename-0.1.0-py3-none-any.whl` (wheel file - recommended)
+   - `autorename-0.1.0.tar.gz` (source distribution)
+
+3. Copy the `.whl` file to another computer and install it:
+
+   ```bash
+   pip install autorename-0.1.0-py3-none-any.whl
+   ```
+
 ## Usage
 
 Invoke the command with directory names or file names:
