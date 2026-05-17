@@ -37,6 +37,9 @@ repos:
     hooks:
       - id: mypy
         args: [--config-file=pyproject.toml]
+        additional_dependencies:
+          - pytest
+          - pytest-mock
 
   # Security checks
   - repo: https://github.com/pycqa/bandit
