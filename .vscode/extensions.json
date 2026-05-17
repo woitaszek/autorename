@@ -1,6 +1,12 @@
 {
     "recommendations": [
-        "davidanson.vscode-markdownlint",
-        "charliermarsh.ruff"
-    ]
+        "charliermarsh.ruff",
+        "ms-python.python",
+        "ms-python.mypy-type-checker",
+        "DavidAnson.vscode-markdownlint",
+        "tamasfe.even-better-toml",
+        "esbenp.prettier-vscode",
+        "streetsidesoftware.code-spell-checker"
+    ],
+    "unwantedRecommendations": ["ms-python.isort"]
 }

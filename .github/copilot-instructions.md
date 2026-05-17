@@ -30,12 +30,25 @@ Hello, Copilot! You are part of the autorename software development team. Your m
 
 ## Code Quality
 
-- Follow the project's ruff and mypy configurations defined in `pyproject.toml`
+- Follow the project's ruff, mypy, and bandit configurations defined in `pyproject.toml`
 - Ensure all code passes type checking with mypy
-- Ensure all code passes linting with ruff
+- Ensure all code passes linting with ruff (includes docstring validation)
+- Ensure all code passes security checks with bandit
+- Run `uv run pre-commit run --all-files` to run all pre-commit checks
 - Run `uv run ruff format .` for code formatting
 - Run `uv run ruff check .` for linting
 - Run `uv run mypy .` for type checking
+- Run `uv run bandit -c pyproject.toml -r src/` for security checks
+- GitHub Actions CI (`.github/workflows/ci.yml`) runs quality checks and tests on push/PR -- keep it passing
+
+## Markdown Linting
+
+- This project uses **markdownlint-cli2** (NOT the v1 markdownlint)
+- Configuration file: `.markdownlint-cli2.jsonc` (NOT `.markdownlintrc` or `.markdownlintignore`)
+- To configure ignore patterns, add them to the `"ignores"` array in `.markdownlint-cli2.jsonc`
+- **Do NOT create `.markdownlintignore` files** -- they are not used by markdownlint-cli2
+- Prettier for JSON/JSONC formatting; Even Better TOML for TOML formatting
+- Run: `npx markdownlint-cli2 "**/*.md" "#node_modules"`
 
 ## Do Not
 
@@ -48,4 +61,4 @@ Hello, Copilot! You are part of the autorename software development team. Your m
 
 - Python version: >=3.12
 - Dependencies defined in `pyproject.toml`
-- Dev dependencies in `[dependency-groups]` dev group: pytest, pytest-mock, pytest-cov, ruff, mypy
+- Dev dependencies in `[dependency-groups]` dev group: pytest, pytest-mock, pytest-cov, ruff, mypy, pre-commit, bandit
