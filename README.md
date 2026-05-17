@@ -1,8 +1,8 @@
 # autorename
 
-This script renames the files in a directory tree to a new name based on each file's modification time and md5 hash for recognized extensions.
+[![CI](https://github.com/woitaszek/autorename/actions/workflows/ci.yml/badge.svg)](https://github.com/woitaszek/autorename/actions/workflows/ci.yml)
 
-![build status](https://github.com/woitaszek/autorename/actions/workflows/python-app.yml/badge.svg)
+This script renames the files in a directory tree to a new name based on each file's modification time and md5 hash for recognized extensions.
 
 ## Synopsis
 
@@ -41,7 +41,7 @@ Features:
 - Skips files that start with valid prefixes that look like dates and words. The format depends on the directory configuration:
   - With **day** granularity (default), skips files like `2020-01-01 My Picture.jpg` or `2020-01-XX My Picture.jpg`.
   - With **minute** granularity, skips files like `2020-01-01-1234 My Picture.jpg` or `2020-01-XX-12XX My Picture.jpg`.
-  
+
   This way, if you had renamed files to get them "close enough" to date ordering but with descriptive file names, they won't get renamed.
 
 - Deletes all those `.DS_Store` files that macOS likes to create.
