@@ -232,7 +232,7 @@ def test_generate_filename_case_insensitive_extension(
 # ----------------------------------------------------------------------
 
 
-def test_config_file_invalid_secion(tmp_path: Any) -> None:
+def test_config_file_invalid_section(tmp_path: Any) -> None:
     """Test a configuration file with an invalid section."""
     # Arrange: create config file with invalid section
     jpg_file = tmp_path / "empty.jpg"
