@@ -1,0 +1,60 @@
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^(\.specstory/|\.copilot-tracking/)
+      - id: end-of-file-fixer
+        exclude: ^(\.specstory/|\.copilot-tracking/)
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+        exclude: ^\.vscode/settings\.json$
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+        exclude: ^(\.specstory/|\.copilot-tracking/)
+
+  # Ruff - formatting and linting
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.9
+    hooks:
+      # Run the formatter
+      - id: ruff-format
+        types_or: [python, pyi, jupyter]
+      # Run the linter
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+        types_or: [python, pyi, jupyter]
+
+  # Mypy - static type checking
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.19.1
+    hooks:
+      - id: mypy
+        args: [--config-file=pyproject.toml]
+
+  # Security checks
+  - repo: https://github.com/pycqa/bandit
+    rev: 1.9.2
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+        additional_dependencies: ["bandit[toml]"]
+        exclude: ^tests/
+
+  # Markdown linting
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.22.1
+    hooks:
+      - id: markdownlint-cli2
+
+  # Spell checking
+  - repo: https://github.com/streetsidesoftware/cspell-cli
+    rev: v10.0.0
+    hooks:
+      - id: cspell

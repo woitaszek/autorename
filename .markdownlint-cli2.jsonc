@@ -1,0 +1,25 @@
+{
+    "config": {
+        "default": true,
+
+        // Disable line length rule — prefer paragraph-style writing
+        // without hard line breaks so text reflows naturally
+        "MD013": false,
+
+        // Enforce consistent spacing in lists
+        "MD030": {
+            "ul_single": 1,
+            "ul_multi": 1,
+            "ol_single": 1,
+            "ol_multi": 1
+        },
+
+        // Allow aligned table delimiters and any style
+        "MD060": {
+            "aligned_delimiter": true,
+            "style": "any"
+        }
+    },
+
+    "ignores": [".venv/", ".specstory/", ".copilot-tracking/", "node_modules/"]
+}

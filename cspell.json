@@ -1,0 +1,38 @@
+{
+    "version": "0.2",
+    "language": "en",
+    "words": [
+        "autorename",
+        "charliermarsh",
+        "docstrings",
+        "dryrun",
+        "esbenp",
+        "htmlcov",
+        "isort",
+        "markdownlintrc",
+        "mypy",
+        "pycache",
+        "pycodestyle",
+        "pydocstyle",
+        "Pyflakes",
+        "pyproject",
+        "pytest",
+        "pyupgrade",
+        "specstory",
+        "tamasfe",
+        "testpaths",
+        "venv",
+        "Woitaszek"
+    ],
+    "ignorePaths": [
+        "node_modules",
+        ".venv",
+        ".git",
+        "*.lock",
+        "uv.lock",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".pytest_cache",
+        "__pycache__"
+    ]
+}
