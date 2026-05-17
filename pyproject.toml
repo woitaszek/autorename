@@ -8,9 +8,7 @@ version = "0.1.0"
 description = "Rename files based on modification time and MD5 hash"
 readme = "README.md"
 requires-python = ">=3.12"
-authors = [
-    {name = "Matthew Woitaszek"}
-]
+authors = [{ name = "Matthew Woitaszek" }]
 
 [project.urls]
 Repository = "https://github.com/woitaszek/autorename"
@@ -18,29 +16,56 @@ Repository = "https://github.com/woitaszek/autorename"
 [project.scripts]
 autorename = "autorename.autorename:main"
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
-    "pytest>=7.0",
-    "pytest-mock>=3.0",
-    "pytest-cov>=4.0",
-    "ruff>=0.1.0",
-    "mypy>=1.0",
+    "pytest>=8.3.4",
+    "pytest-mock>=3.14.0",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.8.4",
+    "mypy>=1.13.0",
+    "pre-commit>=4.0.1",
+    "bandit[toml]>=1.9.2",
 ]
 
-[tool.pytest.ini_options]
-log_cli = true
-log_cli_level = "DEBUG"
-log_cli_format = "%(asctime)s %(name)-24.23s %(funcName)-25s %(levelname)-8s %(message)s"
-log_cli_date_format = "%Y-%m-%d %H:%M:%S"
-testpaths = ["tests"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/autorename"]
+
+[tool.ruff]
+exclude = ["docs"]
+extend-include = ["*.ipynb"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W"]
+select = [
+    "E",   # pycodestyle errors (PEP 8 violations, includes blank line rules)
+    "F",   # Pyflakes (undefined names, unused imports, etc.)
+    "I",   # isort (import sorting)
+    "UP",  # pyupgrade (upgrade syntax for newer Python versions)
+    "B",   # flake8-bugbear (likely bugs and design problems)
+    "SIM", # flake8-simplify (simplification suggestions)
+    "RUF", # Ruff-specific rules
+    "D1",  # pydocstyle - missing docstrings
+    "D2",  # pydocstyle - docstring formatting
+    "D4",  # pydocstyle - docstring content
+]
+ignore = [
+    "SIM108", # Prefer explicit if/else over ternary operator for readability
+    "D203",   # Incompatible with D211 (blank line before class)
+    "D213",   # Incompatible with D212 (multi-line summary position)
+    "D202",   # Allow blank lines after function docstrings
+    "D401",   # Imperative mood is overly prescriptive
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"] # Re-exports are intentional in __init__ modules
+"tests/**" = ["D"]       # Docstrings not required in test files
+"*.ipynb" = ["F821"]     # Undefined names expected in notebook cells
 
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
-line-ending = "auto"
 
 [tool.mypy]
 python_version = "3.12"
@@ -54,3 +79,14 @@ warn_unused_ignores = true
 warn_no_return = true
 check_untyped_defs = true
 strict_equality = true
+
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "DEBUG"
+log_cli_format = "%(asctime)s %(name)-24.23s %(funcName)-25s %(levelname)-8s %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+testpaths = ["tests"]
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
+skips = ["B101"]
