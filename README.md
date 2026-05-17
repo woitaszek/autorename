@@ -59,7 +59,7 @@ The configuration file is a simple INI file with the following format:
 prefix_timestamp = <day | minute>
 ```
 
-> 💡 **Note:** In the future, it would be great to support the configuration of arbitrary prefix format configurations, but that's a real pain to test at runtime to prevent a misconfiguration from renaming files in a way that could be destructive.
+> **Note:** In the future, it would be great to support the configuration of arbitrary prefix format configurations, but that's a real pain to test at runtime to prevent a misconfiguration from renaming files in a way that could be destructive.
 
 ## Installation
 
@@ -76,15 +76,15 @@ uv run /path/to/autorename/autorename.py [--commit] <files | directories...>
 Clone the repository and install with uv:
 
 ```bash
-uv sync --extra dev
+uv sync
 ```
 
 ### For system-wide usage
 
-Install the package using pip:
+Install the package using uv:
 
 ```bash
-pip install .
+uv tool install .
 ```
 
 ### For packaging and distribution
@@ -104,7 +104,7 @@ To create a distributable package that can be copied to another computer:
 3. Copy the `.whl` file to another computer and install it:
 
    ```bash
-   pip install autorename-0.1.0-py3-none-any.whl
+   uv tool install autorename-0.1.0-py3-none-any.whl
    ```
 
 ## Usage
