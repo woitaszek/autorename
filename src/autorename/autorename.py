@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
+"""Rename files based on modification time and MD5 hash."""
 
-# Python imports
 import argparse
+import configparser
 import datetime
-import logging
 import hashlib
+import logging
 import os
 import re
-import configparser
 import zoneinfo
-
 from typing import Literal, TypedDict
 
 # Timezone configuration
@@ -182,8 +181,8 @@ def generate_filename(path: str, filename: str) -> str | None:
     """
 
     filepath = os.path.join(path, filename)
-    assert os.path.exists(filepath), "File '%s' does not exist" % (filepath)
-    assert os.path.isfile(filepath), "File '%s' is not a regular file" % (filepath)
+    assert os.path.exists(filepath), f"File '{filepath}' does not exist"
+    assert os.path.isfile(filepath), f"File '{filepath}' is not a regular file"
 
     # Get the directory configuration for the target directory
     directory_config = get_directory_config(path)
@@ -222,7 +221,7 @@ def generate_filename(path: str, filename: str) -> str | None:
     mtime_datetime = datetime.datetime.fromtimestamp(mtime_seconds, tz=TIMEZONE)
 
     # Compute the MD5 hash of the file
-    hash_md5 = hashlib.md5()
+    hash_md5 = hashlib.md5(usedforsecurity=False)
     with open(filepath, "rb") as f:
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
@@ -301,7 +300,7 @@ def traverse(target: str, dryrun: bool = True) -> None:
         # Create a list of every directory and file in the tree, sorted,
         # including the root directory
         all_dirs = []
-        for root, dirs, files in os.walk(target):
+        for root, _dirs, _files in os.walk(target):
             # We process every directory as it is found by the walk
             all_dirs.append(root)
         all_dirs.sort()
@@ -311,10 +310,8 @@ def traverse(target: str, dryrun: bool = True) -> None:
             process_directory(root, dryrun)
         return
 
-    assert False, (
-        "Should not get here, directory entry '%s' is not a file or "
-        "directory" % (target)
-    )
+    msg = f"Should not get here, directory entry '{target}' is not a file or directory"
+    raise AssertionError(msg)
 
 
 def process_directory(path: str, dryrun: bool = True) -> None:

@@ -1,20 +1,19 @@
 # test_autorename.py
 
-# Python imports
-import os
-import logging
 import datetime
 import hashlib
+import logging
+import os
 from typing import Any
+
+import pytest
 from pytest_mock import MockerFixture
 
-# Test imports
-import pytest
-
-# Target imports
 from autorename import autorename
 from autorename.autorename import TIMEZONE
 
+# Current year prefix for glob patterns in filesystem tests
+_YEAR = datetime.datetime.now(tz=TIMEZONE).strftime("%Y")
 
 # ----------------------------------------------------------------------
 # General mocking for reading a mock file
@@ -531,8 +530,8 @@ def test_traverse_directory(tmp_path: Any) -> None:
     assert not (tmp_path / "file1.png").exists()
     assert not (tmp_path / "file2.jpg").exists()
     assert (tmp_path / "ignored.txt").exists()  # txt not renamed
-    assert len(list(tmp_path.glob("2025-*.png"))) == 1
-    assert len(list(tmp_path.glob("2025-*.jpg"))) == 1
+    assert len(list(tmp_path.glob(f"{_YEAR}-*.png"))) == 1
+    assert len(list(tmp_path.glob(f"{_YEAR}-*.jpg"))) == 1
 
 
 def test_traverse_directory_with_subdirectories(tmp_path: Any) -> None:
@@ -549,8 +548,8 @@ def test_traverse_directory_with_subdirectories(tmp_path: Any) -> None:
     # Assert: files in both root and subdirectory should be renamed
     assert not (tmp_path / "root.png").exists()
     assert not (subdir / "sub.png").exists()
-    assert len(list(tmp_path.glob("2025-*.png"))) == 1
-    assert len(list(subdir.glob("2025-*.png"))) == 1
+    assert len(list(tmp_path.glob(f"{_YEAR}-*.png"))) == 1
+    assert len(list(subdir.glob(f"{_YEAR}-*.png"))) == 1
 
 
 # ----------------------------------------------------------------------
@@ -577,7 +576,7 @@ def test_process_directory_with_subdirectories(tmp_path: Any) -> None:
 
     # Assert: only root file should be renamed, subdirectory should be skipped
     assert len(list(tmp_path.glob("file.png"))) == 0
-    assert len(list(tmp_path.glob("2025-*.png"))) == 1
+    assert len(list(tmp_path.glob(f"{_YEAR}-*.png"))) == 1
     # Nested file should still exist with original name
     assert (subdir / "nested.png").exists()
 
@@ -617,7 +616,7 @@ def test_main_commit_mode(tmp_path: Any, monkeypatch: Any) -> None:
 
     # Assert: file should be renamed (commit mode)
     assert not test_file.exists()
-    assert len(list(tmp_path.glob("2025-*.png"))) == 1
+    assert len(list(tmp_path.glob(f"{_YEAR}-*.png"))) == 1
 
 
 def test_main_multiple_targets(tmp_path: Any, monkeypatch: Any) -> None:
@@ -641,8 +640,8 @@ def test_main_multiple_targets(tmp_path: Any, monkeypatch: Any) -> None:
     # Assert: both files should be renamed
     assert not file1.exists()
     assert not file2.exists()
-    assert len(list(dir1.glob("2025-*.png"))) == 1
-    assert len(list(dir2.glob("2025-*.jpg"))) == 1
+    assert len(list(dir1.glob(f"{_YEAR}-*.png"))) == 1
+    assert len(list(dir2.glob(f"{_YEAR}-*.jpg"))) == 1
 
 
 # ----------------------------------------------------------------------
