@@ -130,6 +130,7 @@ def get_directory_config(target_dir: str) -> DirectoryConfig | None:
             )
         if found_in_dir:
             found_config_file = found_in_dir[0]
+            logger.info(f"Found config file: {found_config_file}")
             break
         current_dir = os.path.dirname(current_dir)
 
