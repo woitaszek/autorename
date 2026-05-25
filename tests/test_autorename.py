@@ -583,6 +583,23 @@ def test_traverse_directory_with_subdirectories(tmp_path: Any) -> None:
     assert len(list(subdir.glob(f"{_YEAR}-*.png"))) == 1
 
 
+def test_traverse_skips_hidden_directories(tmp_path: Any) -> None:
+    """Test that hidden directories (starting with dot) are skipped."""
+    # Arrange: create a hidden subdirectory with a file
+    hidden_dir = tmp_path / ".hidden"
+    hidden_dir.mkdir()
+    (hidden_dir / "secret.png").write_bytes(b"hidden content")
+    (tmp_path / "visible.png").write_bytes(b"visible content")
+
+    # Act: traverse the root directory
+    autorename.traverse(str(tmp_path), dryrun=False)
+
+    # Assert: visible file renamed, hidden directory file untouched
+    assert not (tmp_path / "visible.png").exists()
+    assert len(list(tmp_path.glob(f"{_YEAR}-*.png"))) == 1
+    assert (hidden_dir / "secret.png").exists()
+
+
 # ----------------------------------------------------------------------
 # Test process_directory edge cases
 # ----------------------------------------------------------------------

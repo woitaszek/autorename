@@ -315,7 +315,16 @@ def traverse(target: str, dryrun: bool = True) -> None:
         # Create a list of every directory and file in the tree, sorted,
         # including the root directory
         all_dirs = []
-        for root, _dirs, _files in os.walk(target):
+        for root, dirs, _files in os.walk(target):
+            # Skip directories that start with a dot
+            hidden = [d for d in dirs if d.startswith(".")]
+            for d in hidden:
+                logger.warning(
+                    "Skipping hidden directory '%s'",
+                    os.path.join(root, d),
+                )
+                dirs.remove(d)
+
             # We process every directory as it is found by the walk
             all_dirs.append(root)
         all_dirs.sort()
