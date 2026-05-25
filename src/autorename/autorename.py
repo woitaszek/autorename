@@ -72,8 +72,11 @@ re_prefix_minute = re.compile(
 
 # We provide the ability to configure the autorename script using a
 # configuration file in the hierarchy containing the target directory.
-# For each path, we look for a file called .autorename.ini. If it exists,
-# we read the configuration from that file and cache it for quick retrievals.
+# For each path, we look for a file called autorename.ini or .autorename.ini.
+# If one exists, we read the configuration from that file and cache it for
+# quick retrievals. If both exist in the same directory, we raise an error.
+
+CONFIG_FILENAMES: list[str] = ["autorename.ini", ".autorename.ini"]
 
 cached_directory_config: dict[str, DirectoryConfig | None] = {}
 
@@ -81,9 +84,10 @@ cached_directory_config: dict[str, DirectoryConfig | None] = {}
 def get_directory_config(target_dir: str) -> DirectoryConfig | None:
     """Get the directory configuration for the autorename script.
 
-    Searches for a .autorename.ini file in the specified directory and its
-    parent directories. The configuration file should contain an [autorename]
-    section with a prefix_timestamp option set to either 'minute' or 'day'.
+    Searches for an autorename.ini or .autorename.ini file in the specified
+    directory and its parent directories. The configuration file should
+    contain an [autorename] section with a prefix_timestamp option set to
+    either 'minute' or 'day'.
 
     Args:
         target_dir: The directory path to search for configuration.
@@ -93,8 +97,9 @@ def get_directory_config(target_dir: str) -> DirectoryConfig | None:
         configuration file is found or the directory doesn't exist.
 
     Raises:
-        ValueError: If the configuration file is missing required sections,
-            options, or has invalid values.
+        ValueError: If both autorename.ini and .autorename.ini exist in the
+            same directory, or if the configuration file is missing required
+            sections, options, or has invalid values.
     """
 
     # If the directory configuration has already been read, return it
@@ -112,9 +117,19 @@ def get_directory_config(target_dir: str) -> DirectoryConfig | None:
     current_dir = target_dir
     found_config_file = None
     while current_dir != "/":
-        config_file = os.path.join(current_dir, ".autorename.ini")
-        if os.path.exists(config_file):
-            found_config_file = config_file
+        found_in_dir = [
+            os.path.join(current_dir, name)
+            for name in CONFIG_FILENAMES
+            if os.path.exists(os.path.join(current_dir, name))
+        ]
+        if len(found_in_dir) > 1:
+            raise ValueError(
+                f"Directory '{current_dir}' contains both "
+                f"'autorename.ini' and '.autorename.ini' -- "
+                f"remove one to resolve the conflict"
+            )
+        if found_in_dir:
+            found_config_file = found_in_dir[0]
             break
         current_dir = os.path.dirname(current_dir)
 

@@ -277,6 +277,37 @@ def test_config_file_invalid_key(tmp_path: Any) -> None:
         autorename.get_directory_config(tmp_path)
 
 
+def test_config_file_no_dot_prefix(tmp_path: Any) -> None:
+    """Test that autorename.ini (without dot prefix) is detected."""
+    # Arrange: create autorename.ini (no leading dot)
+    ini_file = tmp_path / "autorename.ini"
+    with ini_file.open("w") as f:
+        f.write("[autorename]\nprefix_timestamp = minute\n")
+
+    # Act
+    config = autorename.get_directory_config(tmp_path)
+
+    # Assert
+    assert config is not None
+    assert config["prefix_timestamp"] == "minute"
+
+
+def test_config_file_both_exist_raises(tmp_path: Any) -> None:
+    """Test that having both autorename.ini and .autorename.ini raises."""
+    # Arrange: create both config files in the same directory
+    ini_file = tmp_path / "autorename.ini"
+    with ini_file.open("w") as f:
+        f.write("[autorename]\nprefix_timestamp = day\n")
+
+    dot_ini_file = tmp_path / ".autorename.ini"
+    with dot_ini_file.open("w") as f:
+        f.write("[autorename]\nprefix_timestamp = minute\n")
+
+    # Act & Assert: should raise ValueError for conflicting config files
+    with pytest.raises(ValueError, match="contains both"):
+        autorename.get_directory_config(tmp_path)
+
+
 def test_config_file_hierarchy(tmp_path: Any) -> None:
     """Test a nontrivial configuration file hierarchy."""
 

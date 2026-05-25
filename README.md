@@ -29,7 +29,7 @@ Features:
 
   (The front of the hash is used just like git, as opposed to the back of the hash like GPG.)
 
-- Supports naming files with **day** or **minute** granularity in a directory (and its subdirectories) via the placement of `.autorename.ini` configuration files.
+- Supports naming files with **day** or **minute** granularity in a directory (and its subdirectories) via the placement of `autorename.ini` or `.autorename.ini` configuration files.
 
   The `prefix_timestamp` option can be set to either `day` or `minute`. If this option is not set, the script will default to `day` granularity.
 
@@ -50,7 +50,14 @@ Features:
 
 ## In-Place Configuration
 
-The script can be configured to name files with **day** or **minute** granularity in a directory (and its subdirectories) via the placement of `.autorename.ini` configuration files. The script will look for these files in the directory tree, starting from the directory containing the file to be renamed and going up to the root directory, stopping at the first `.autorename.ini` file it finds.
+The script can be configured to name files with **day** or **minute** granularity in a directory (and its subdirectories) via the placement of configuration files. The script recognizes two file names:
+
+- `autorename.ini`
+- `.autorename.ini`
+
+If a directory contains **both** files, the script raises an error. Remove one to resolve the conflict.
+
+The script searches for these files in the directory tree, starting from the directory containing the file to be renamed and going up to the root directory, stopping at the first directory that contains either configuration file.
 
 The configuration file is a simple INI file with the following format:
 
