@@ -20,6 +20,7 @@ class DirectoryConfig(TypedDict):
     """Configuration for autorename directory settings."""
 
     prefix_timestamp: Literal["minute", "day"]
+    skip_regex: list[re.Pattern[str]]
 
 
 # Extensions to be renamed
@@ -45,6 +46,22 @@ logging.basicConfig(
     level=logging.DEBUG,
 )
 logger = logging.getLogger(__name__)
+
+
+# Sample stems used by the live-test to validate that skip_regex patterns
+# are not overly broad. These represent "normal" filenames that a user
+# would NOT want universally skipped.
+SKIP_REGEX_SAMPLE_STEMS: list[str] = [
+    "my-vacation-photo",
+    "2024-family-reunion",
+    "important-document-v2",
+    "birthday-party-clip",
+    "IMG_1234",
+    "screenshot-2024-01-15",
+    "wedding-highlights",
+    "project-notes",
+    "File \U0001f31f Name  X",
+]
 
 
 # Regular expression for detecting manually-named files that should not
@@ -161,14 +178,70 @@ def get_directory_config(target_dir: str) -> DirectoryConfig | None:
             f"{config['autorename']['prefix_timestamp']}"
         )
 
+    # Parse skip_regex patterns (optional, multi-line value)
+    skip_patterns: list[re.Pattern[str]] = []
+    if "skip_regex" in config["autorename"]:
+        raw_value = config["autorename"]["skip_regex"]
+        for line in raw_value.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                skip_patterns.append(re.compile(line))
+            except re.error as e:
+                raise ValueError(
+                    f"Configuration file '{found_config_file}' has invalid "
+                    f"regex in 'skip_regex': '{line}' -- {e}"
+                ) from e
+
+    # Validate that skip patterns are not overly broad
+    if skip_patterns:
+        validate_skip_patterns(skip_patterns, found_config_file)
+
     # Store the configuration in the cache
     prefix_value = config["autorename"]["prefix_timestamp"]
     directory_config: DirectoryConfig = {
-        "prefix_timestamp": prefix_value  # type: ignore[typeddict-item]
+        "prefix_timestamp": prefix_value,  # type: ignore[typeddict-item]
+        "skip_regex": skip_patterns,
     }
     cached_directory_config[target_dir] = directory_config
 
     return directory_config
+
+
+def validate_skip_patterns(patterns: list[re.Pattern[str]], config_path: str) -> None:
+    """Validate that skip_regex patterns are not overly broad.
+
+    Checks the compiled patterns against built-in sample stems. Raises
+    ValueError if all samples are matched, indicating the patterns are
+    too broad.
+
+    Args:
+        patterns: Compiled regex patterns from the skip_regex config.
+        config_path: Path to the config file (used in error messages).
+
+    Raises:
+        ValueError: If all built-in sample stems are matched by the patterns.
+    """
+    if not patterns:
+        return
+
+    def stem_matches(stem: str) -> bool:
+        return any(p.search(stem) for p in patterns)
+
+    sample_matches = sum(1 for s in SKIP_REGEX_SAMPLE_STEMS if stem_matches(s))
+    if sample_matches == len(SKIP_REGEX_SAMPLE_STEMS):
+        raise ValueError(
+            f"skip_regex patterns in '{config_path}' match all "
+            f"{len(SKIP_REGEX_SAMPLE_STEMS)} built-in test samples -- "
+            f"patterns are too broad"
+        )
+
+    logger.info(
+        "skip_regex: %d of %d built-in samples skipped",
+        sample_matches,
+        len(SKIP_REGEX_SAMPLE_STEMS),
+    )
 
 
 # ----------------------------------------------------------------------
@@ -206,19 +279,36 @@ def generate_filename(path: str, filename: str) -> str | None:
     # Check to see if the file has a valid extension for renaming
     filename_lower = filename.lower()
     extension = None
+    original_extension = None
     for e in EXTENSIONS:
         if filename_lower.endswith("." + e):
             extension = e
+            original_extension = e
             break
 
     # Manual overrides
     if filename_lower.endswith(".jpeg"):
+        original_extension = "jpeg"
         extension = "jpg"
 
     # Skip files that don't have a valid extension
     if extension is None:
         # logger.debug('  Skipping extension:       %s', filename)
         return None
+
+    # Apply skip_regex patterns against the stem (filename minus extension)
+    if directory_config is not None and directory_config.get("skip_regex"):
+        # Strip only the rightmost recognized extension to get the stem
+        assert original_extension is not None
+        stem = filename[: -(len(original_extension) + 1)]
+        for pattern in directory_config["skip_regex"]:
+            if pattern.search(stem):
+                logger.debug(
+                    "  Skipping skip_regex:      %s (matched %s)",
+                    filename,
+                    pattern.pattern,
+                )
+                return None
 
     # Check to see if the file already has a valid prefix
     if (

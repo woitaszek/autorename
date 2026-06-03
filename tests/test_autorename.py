@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import logging
 import os
+import re
 from typing import Any
 
 import pytest
@@ -690,6 +691,267 @@ def test_main_multiple_targets(tmp_path: Any, monkeypatch: Any) -> None:
     assert not file2.exists()
     assert len(list(dir1.glob(f"{_YEAR}-*.png"))) == 1
     assert len(list(dir2.glob(f"{_YEAR}-*.jpg"))) == 1
+
+
+# ----------------------------------------------------------------------
+# Test skip_regex configuration parsing
+# ----------------------------------------------------------------------
+
+
+def test_config_skip_regex_valid(tmp_path: Any) -> None:
+    """Test parsing a valid skip_regex multi-line value."""
+    ini_file = tmp_path / "autorename.ini"
+    with ini_file.open("w") as f:
+        f.write(
+            "[autorename]\n"
+            "prefix_timestamp = day\n"
+            "skip_regex =\n"
+            "    ^prefix1-\n"
+            "    ^prefix2_\n"
+        )
+
+    config = autorename.get_directory_config(tmp_path)
+    assert config is not None
+    assert len(config["skip_regex"]) == 2
+    assert config["skip_regex"][0].pattern == "^prefix1-"
+    assert config["skip_regex"][1].pattern == "^prefix2_"
+
+
+def test_config_skip_regex_empty(tmp_path: Any) -> None:
+    """Test that an empty skip_regex value results in no patterns."""
+    ini_file = tmp_path / "autorename.ini"
+    with ini_file.open("w") as f:
+        f.write("[autorename]\nprefix_timestamp = day\nskip_regex =\n")
+
+    config = autorename.get_directory_config(tmp_path)
+    assert config is not None
+    assert config["skip_regex"] == []
+
+
+def test_config_skip_regex_absent(tmp_path: Any) -> None:
+    """Test that missing skip_regex key defaults to empty list."""
+    ini_file = tmp_path / "autorename.ini"
+    with ini_file.open("w") as f:
+        f.write("[autorename]\nprefix_timestamp = day\n")
+
+    config = autorename.get_directory_config(tmp_path)
+    assert config is not None
+    assert config["skip_regex"] == []
+
+
+def test_config_skip_regex_invalid_raises(tmp_path: Any) -> None:
+    """Test that an invalid regex in skip_regex raises ValueError."""
+    ini_file = tmp_path / "autorename.ini"
+    with ini_file.open("w") as f:
+        f.write("[autorename]\nprefix_timestamp = day\nskip_regex =\n    [invalid\n")
+
+    with pytest.raises(ValueError, match="invalid regex"):
+        autorename.get_directory_config(tmp_path)
+
+
+# ----------------------------------------------------------------------
+# Test skip_regex logic in generate_filename
+# ----------------------------------------------------------------------
+
+
+def test_skip_regex_matches_stem(
+    mock_setup: tuple[Any, Any, Any, Any], mocker: MockerFixture
+) -> None:
+    """Test that a file matching a skip pattern returns None."""
+    mock_config: autorename.DirectoryConfig = {
+        "prefix_timestamp": "day",
+        "skip_regex": [re.compile(r"^prefix1-")],
+    }
+    mocker.patch("autorename.autorename.get_directory_config", return_value=mock_config)
+
+    result = autorename.generate_filename("/path/does/not/exist", "prefix1-abc123.jpg")
+    assert result is None
+
+
+def test_skip_regex_no_match_proceeds(
+    mock_setup: tuple[Any, Any, Any, Any], mocker: MockerFixture
+) -> None:
+    """Test that a file not matching skip patterns proceeds normally."""
+    mock_config: autorename.DirectoryConfig = {
+        "prefix_timestamp": "day",
+        "skip_regex": [re.compile(r"^prefix1-")],
+    }
+    mocker.patch("autorename.autorename.get_directory_config", return_value=mock_config)
+
+    result = autorename.generate_filename("/path/does/not/exist", "my-photo.png")
+    assert result is not None
+    assert result.endswith(".png")
+
+
+def test_skip_regex_anchored_end(
+    mock_setup: tuple[Any, Any, Any, Any], mocker: MockerFixture
+) -> None:
+    """Test end-of-string anchor in skip pattern."""
+    mock_config: autorename.DirectoryConfig = {
+        "prefix_timestamp": "day",
+        "skip_regex": [re.compile(r"^.{15}$")],
+    }
+    mocker.patch("autorename.autorename.get_directory_config", return_value=mock_config)
+
+    # Stem "exactly15chars!!" is 15 chars -- should be skipped
+    result = autorename.generate_filename("/path/does/not/exist", "exactly15chars!.png")
+    assert result is None
+
+    # Stem "short" is 5 chars -- should NOT be skipped
+    result = autorename.generate_filename("/path/does/not/exist", "short.png")
+    assert result is not None
+
+
+def test_skip_regex_unanchored_pattern(
+    mock_setup: tuple[Any, Any, Any, Any], mocker: MockerFixture
+) -> None:
+    """Test unanchored pattern matches anywhere in stem."""
+    mock_config: autorename.DirectoryConfig = {
+        "prefix_timestamp": "day",
+        "skip_regex": [re.compile(r"  X\.")],
+    }
+    mocker.patch("autorename.autorename.get_directory_config", return_value=mock_config)
+
+    # Contains "  X." in stem
+    result = autorename.generate_filename("/path/does/not/exist", "hello  X.world.jpg")
+    assert result is None
+
+    # Does not contain "  X." in stem
+    result = autorename.generate_filename("/path/does/not/exist", "hello_world.jpg")
+    assert result is not None
+
+
+def test_skip_regex_unanchored_pattern_with_emoji(
+    mock_setup: tuple[Any, Any, Any, Any], mocker: MockerFixture
+) -> None:
+    """Test unanchored pattern matches in stem containing unicode emoji."""
+    mock_config: autorename.DirectoryConfig = {
+        "prefix_timestamp": "day",
+        "skip_regex": [re.compile(r"  X$")],
+    }
+    mocker.patch("autorename.autorename.get_directory_config", return_value=mock_config)
+
+    # Filename "File \U0001f31f Name  X.jpg" -> stem "File \U0001f31f Name  X"
+    # Stem ends with "  X" so pattern should match
+    result = autorename.generate_filename(
+        "/path/does/not/exist", "File \U0001f31f Name  X.jpg"
+    )
+    assert result is None
+
+
+def test_skip_regex_multi_dot_stem(
+    mock_setup: tuple[Any, Any, Any, Any], mocker: MockerFixture
+) -> None:
+    """Test that only the rightmost extension is stripped for stem."""
+    mock_config: autorename.DirectoryConfig = {
+        "prefix_timestamp": "day",
+        "skip_regex": [re.compile(r"^prefix1-.*\.extra$")],
+    }
+    mocker.patch("autorename.autorename.get_directory_config", return_value=mock_config)
+
+    # Filename "prefix1-photo.extra.png" -> stem "prefix1-photo.extra"
+    result = autorename.generate_filename(
+        "/path/does/not/exist", "prefix1-photo.extra.png"
+    )
+    assert result is None
+
+
+def test_skip_regex_jpeg_extension(
+    mock_setup: tuple[Any, Any, Any, Any], mocker: MockerFixture
+) -> None:
+    """Test that jpeg files have stem computed from .jpeg not .jpg."""
+    mock_config: autorename.DirectoryConfig = {
+        "prefix_timestamp": "day",
+        "skip_regex": [re.compile(r"^prefix2_")],
+    }
+    mocker.patch("autorename.autorename.get_directory_config", return_value=mock_config)
+
+    # "prefix2_photo.jpeg" -> stem should be "prefix2_photo" (strip .jpeg)
+    result = autorename.generate_filename("/path/does/not/exist", "prefix2_photo.jpeg")
+    assert result is None
+
+
+def test_skip_regex_facebook_pattern(
+    mock_setup: tuple[Any, Any, Any, Any], mocker: MockerFixture
+) -> None:
+    """Test the Facebook/Instagram numeric ID pattern."""
+    mock_config: autorename.DirectoryConfig = {
+        "prefix_timestamp": "day",
+        "skip_regex": [re.compile(r"^\d{8}_\d{16}_\d{19}_n$")],
+    }
+    mocker.patch("autorename.autorename.get_directory_config", return_value=mock_config)
+
+    # Exact Facebook pattern match
+    result = autorename.generate_filename(
+        "/path/does/not/exist",
+        "50002538_1974000022813208_5949000004544424160_n.jpg",
+    )
+    assert result is None
+
+    # Non-matching filename
+    result = autorename.generate_filename("/path/does/not/exist", "normal-photo.jpg")
+    assert result is not None
+
+
+# ----------------------------------------------------------------------
+# Test validate_skip_patterns
+# ----------------------------------------------------------------------
+
+
+def test_validate_skip_patterns_all_samples_raises() -> None:
+    """Test that matching all built-in samples raises ValueError."""
+    # Pattern "." matches everything
+    patterns = [re.compile(r".")]
+    with pytest.raises(ValueError, match="built-in test samples"):
+        autorename.validate_skip_patterns(patterns, "test.ini")
+
+
+def test_validate_skip_patterns_partial_pass() -> None:
+    """Test that partial matches pass validation."""
+    patterns = [re.compile(r"^prefix1-")]
+    # Should not raise -- only matches stems starting with "prefix1-"
+    autorename.validate_skip_patterns(patterns, "test-partial.ini")
+
+
+def test_validate_skip_patterns_no_patterns() -> None:
+    """Test that empty patterns list skips validation."""
+    # Should not raise
+    autorename.validate_skip_patterns([], "test-none.ini")
+
+
+# ----------------------------------------------------------------------
+# Test skip_regex integration
+# ----------------------------------------------------------------------
+
+
+def test_skip_regex_integration(tmp_path: Any) -> None:
+    """Test end-to-end skip_regex with real files."""
+    # Create config with skip patterns
+    ini_file = tmp_path / "autorename.ini"
+    with ini_file.open("w") as f:
+        f.write(
+            "[autorename]\n"
+            "prefix_timestamp = day\n"
+            "skip_regex =\n"
+            "    ^prefix1-\n"
+            "    ^prefix2_\n"
+        )
+
+    # Create files -- some should be skipped, some renamed
+    (tmp_path / "prefix1-photo123.jpg").write_bytes(b"skip content 1")
+    (tmp_path / "prefix2_stuff.png").write_bytes(b"skip content 2")
+    (tmp_path / "my-vacation.jpg").write_bytes(b"vacation content")
+
+    # Process directory
+    autorename.traverse(str(tmp_path), dryrun=False)
+
+    # Skipped files should still exist with original names
+    assert (tmp_path / "prefix1-photo123.jpg").exists()
+    assert (tmp_path / "prefix2_stuff.png").exists()
+
+    # Normal file should be renamed
+    assert not (tmp_path / "my-vacation.jpg").exists()
+    assert len(list(tmp_path.glob(f"{_YEAR}-*.jpg"))) == 1
 
 
 # ----------------------------------------------------------------------

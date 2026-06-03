@@ -34,7 +34,7 @@ Features:
   The `prefix_timestamp` option can be set to either `day` or `minute`. If this option is not set, the script will default to `day` granularity.
 
   | Option | Example                        |
-  |--------|--------------------------------|
+  | ------ | ------------------------------ |
   | day    | 2020-01-01-98ecf8427e.jpg      |
   | minute | 2020-01-01-1234-98ecf8427e.jpg |
 
@@ -43,6 +43,8 @@ Features:
   - With **minute** granularity, skips files like `2020-01-01-1234 My Picture.jpg` or `2020-01-XX-12XX My Picture.jpg`.
 
   This way, if you had renamed files to get them "close enough" to date ordering but with descriptive file names, they won't get renamed.
+
+- Supports **skip_regex** patterns in the configuration file to skip files whose stems match user-defined regular expressions. Useful for preserving files from specific sources (e.g., Tumblr, Facebook) that have recognizable naming patterns.
 
 - Deletes all those `.DS_Store` files that macOS likes to create.
 
@@ -64,7 +66,33 @@ The configuration file is a simple INI file with the following format:
 ```ini
 [autorename]
 prefix_timestamp = <day | minute>
+skip_regex =
+    ^pattern1-
+    ^pattern2_
 ```
+
+### prefix_timestamp
+
+Controls the granularity of the timestamp prefix in renamed files. See the table above for examples.
+
+### skip_regex
+
+An optional multi-line value listing regular expressions (one per line). If any pattern matches a file's **stem** (the filename without its extension), that file is skipped and not renamed.
+
+Patterns are matched using `re.search()`, so anchors like `^` and `$` work as expected. Standard regex metacharacters (e.g., `\s`, `\d`, `.`) are supported.
+
+Example: to skip files whose stems start with `tumblr_` or `reblogme-`, or stems that are exactly 15 characters long:
+
+```ini
+[autorename]
+prefix_timestamp = minute
+skip_regex =
+    ^tumblr_
+    ^reblogme-
+    ^.{15}$
+```
+
+A safety check validates that the patterns are not overly broad. If the patterns match **all** built-in sample stems, the configuration is rejected with an error.
 
 > **Note:** In the future, it would be great to support the configuration of arbitrary prefix format configurations, but that's a real pain to test at runtime to prevent a misconfiguration from renaming files in a way that could be destructive.
 
