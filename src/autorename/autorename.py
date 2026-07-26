@@ -373,6 +373,17 @@ def format_size(size_bytes: int) -> str:
         return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
 
 
+def _should_skip_directory(name: str) -> bool:
+    """Return True if a directory should be excluded from scanning.
+
+    Skips directories starting with:
+    - '.' (hidden directories: .git, .thumbnails, .DS_Store, .Spotlight-V100)
+    - '@' (NAS metadata: Synology @eaDir, QNAP @Recycle, Asustor @sharebin)
+    - '#' (QNAP system: #recycle, #nosync, #snapshot)
+    """
+    return name.startswith((".", "@", "#"))
+
+
 def traverse(target: str, dryrun: bool = True) -> None:
     """Traverse and process files or directories.
 
@@ -407,11 +418,11 @@ def traverse(target: str, dryrun: bool = True) -> None:
         # including the root directory
         all_dirs = []
         for root, dirs, _files in os.walk(target):
-            # Skip directories that start with a dot
-            hidden = [d for d in dirs if d.startswith(".")]
-            for d in hidden:
+            # Skip hidden and NAS system directories
+            skipped = [d for d in dirs if _should_skip_directory(d)]
+            for d in skipped:
                 logger.warning(
-                    "Skipping hidden directory '%s'",
+                    "Skipping directory '%s'",
                     os.path.join(root, d),
                 )
                 dirs.remove(d)

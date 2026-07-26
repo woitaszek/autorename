@@ -601,6 +601,50 @@ def test_traverse_skips_hidden_directories(tmp_path: Any) -> None:
     assert (hidden_dir / "secret.png").exists()
 
 
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        (".hidden", True),
+        (".git", True),
+        ("@eaDir", True),
+        ("@tmp", True),
+        ("@Recycle", True),
+        ("#recycle", True),
+        ("#nosync", True),
+        ("#snapshot", True),
+        ("normal_dir", False),
+        ("Documents", False),
+        ("Photos", False),
+        ("2024-vacation", False),
+    ],
+)
+def test_should_skip_directory(name: str, expected: bool) -> None:
+    """Test _should_skip_directory correctly identifies dirs to skip."""
+    assert autorename._should_skip_directory(name) == expected
+
+
+def test_traverse_skips_nas_directories(tmp_path: Any) -> None:
+    """Test that NAS system directories are skipped during traversal."""
+    # Arrange: create NAS metadata directories with files
+    eadir = tmp_path / "@eaDir"
+    eadir.mkdir()
+    (eadir / "thumb.jpg").write_bytes(b"thumbnail content")
+
+    recycle = tmp_path / "#recycle"
+    recycle.mkdir()
+    (recycle / "deleted.png").write_bytes(b"deleted content")
+
+    (tmp_path / "visible.png").write_bytes(b"visible content")
+
+    # Act: traverse the root directory
+    autorename.traverse(str(tmp_path), dryrun=False)
+
+    # Assert: visible file renamed, NAS directory files untouched
+    assert not (tmp_path / "visible.png").exists()
+    assert (eadir / "thumb.jpg").exists()
+    assert (recycle / "deleted.png").exists()
+
+
 # ----------------------------------------------------------------------
 # Test process_directory edge cases
 # ----------------------------------------------------------------------
