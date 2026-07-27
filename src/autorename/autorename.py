@@ -44,7 +44,7 @@ EXTENSIONS: list[str] = [
 
 # Configure logging
 logging.basicConfig(
-    format="%(asctime)s %(name)-24.23s %(funcName)-25s %(levelname)-8s %(message)s",
+    format="%(asctime)s %(name)-14.13s %(funcName)-25s %(levelname)-8s %(message)s",
     level=logging.DEBUG,
 )
 logger = logging.getLogger(__name__)
@@ -157,7 +157,7 @@ def get_directory_config(target_dir: str) -> DirectoryConfig | None:
             )
         if found_in_dir:
             found_config_file = found_in_dir[0]
-            logger.info(f"Found config file: {found_config_file}")
+            logger.info(f"    config: {found_config_file}")
             break
         current_dir = os.path.dirname(current_dir)
 
@@ -248,7 +248,7 @@ def validate_skip_patterns(patterns: list[re.Pattern[str]], config_path: str) ->
         )
 
     logger.info(
-        "skip_regex: %d of %d built-in samples skipped",
+        "    skip_regex: %d of %d built-in samples skipped",
         sample_matches,
         len(SKIP_REGEX_SAMPLE_STEMS),
     )
@@ -314,9 +314,9 @@ def generate_filename(path: str, filename: str) -> str | None:
         for pattern in directory_config["skip_regex"]:
             if pattern.search(stem):
                 logger.debug(
-                    "  Skipping skip_regex:      %s (matched %s)",
-                    filename,
+                    "    skip (regex %s): %s",
                     pattern.pattern,
+                    filename,
                 )
                 return None
 
@@ -418,14 +418,14 @@ def traverse(target: str, dryrun: bool = True) -> ExitCode:
 
     # Process arguments that are files
     if os.path.isfile(target):
-        logger.info("Processing filename argument '%s'", target)
+        logger.info("Processing file '%s'", target)
         path = os.path.dirname(target)
         filename = os.path.basename(target)
         return process_file(path, filename, dryrun)
 
     # Process arguments that are directories
     if os.path.isdir(target):
-        logger.info("Processing directory argument '%s'", target)
+        logger.info("Processing tree '%s'", target)
 
         # Create a list of every directory and file in the tree, sorted,
         # including the root directory
@@ -435,7 +435,7 @@ def traverse(target: str, dryrun: bool = True) -> ExitCode:
             skipped = [d for d in dirs if _should_skip_directory(d)]
             for d in skipped:
                 logger.warning(
-                    "Skipping directory '%s'",
+                    "  Skipping directory '%s'",
                     os.path.join(root, d),
                 )
                 dirs.remove(d)
@@ -494,7 +494,7 @@ def process_directory(path: str, dryrun: bool = True) -> ExitCode:
         return ExitCode.ERROR
 
     logger.info(
-        "Processing directory '%s' (%i files, %s)",
+        "  %s (%i files, %s)",
         path,
         len(filelist),
         format_size(total_size),
@@ -545,9 +545,9 @@ def process_file(
         # Hardcoded override: If this is a .DS_Store file, make it go away
         if filename == ".DS_Store":
             if dryrun:
-                logger.warning("  Deleting file (dryrun):   %s", filename)
+                logger.warning("    delete (dryrun):  %s", filename)
             else:
-                logger.warning("  Deleting file:            %s", filename)
+                logger.warning("    delete:           %s", filename)
                 os.remove(fullpath)
             return ExitCode.ACTED
 
@@ -569,16 +569,16 @@ def process_file(
         filename_with_spacing = filename.ljust(max_filename_length)
         if dryrun:
             logger.debug(
-                "  Renaming file (dryrun):   %s -> %s",
+                "    rename (dryrun):  %s -> %s",
                 filename_with_spacing,
                 new_filename,
-            )  # Filename at 50 chars for info
+            )
         else:
             logger.debug(
-                "  Renaming file:            %s -> %s",
+                "    rename:           %s -> %s",
                 filename_with_spacing,
                 new_filename,
-            )  # Filename at 50 chars for info
+            )
             os.rename(fullpath, new_fullpath)
 
         return ExitCode.ACTED
