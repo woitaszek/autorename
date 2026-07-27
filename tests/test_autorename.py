@@ -5,13 +5,17 @@ import hashlib
 import logging
 import os
 import re
+from pathlib import Path
 from typing import Any
 
 import pytest
 from pytest_mock import MockerFixture
 
 from autorename import autorename
-from autorename.autorename import TIMEZONE
+from autorename.autorename import (
+    TIMEZONE,
+    ExitCode,
+)
 
 # Current year prefix for glob patterns in filesystem tests
 _YEAR = datetime.datetime.now(tz=TIMEZONE).strftime("%Y")
@@ -356,12 +360,14 @@ def test_config_file_hierarchy(tmp_path: Any) -> None:
 
 
 def test_process_filename_does_not_exist() -> None:
-    """Test raising an exception on a file that does not exist."""
+    """Test returning ExitCode.ERROR on a file that does not exist."""
     # Arrange: no mocking needed
 
-    # Act & Assert: should raise FileNotFoundError
-    with pytest.raises(FileNotFoundError):
-        autorename.process_file("/path/does/not/exist", "filename.png")
+    # Act: process a non-existent file
+    result = autorename.process_file("/path/does/not/exist", "filename.png")
+
+    # Assert: should return ExitCode.ERROR
+    assert result == ExitCode.ERROR
 
 
 def test_process_filename_png(
@@ -371,9 +377,12 @@ def test_process_filename_png(
     # Arrange: mock_setup provides file mocking, mock_os_rename mocks rename
 
     # Act: /path/does/not/exist/filename.png
-    autorename.process_file("/path/does/not/exist", "filename.png", dryrun=False)
+    result = autorename.process_file(
+        "/path/does/not/exist", "filename.png", dryrun=False
+    )
 
     # Assert
+    assert result == ExitCode.ACTED
     mock_os_rename.assert_called_once_with(
         "/path/does/not/exist/filename.png",
         f"/path/does/not/exist/{EXPECTED_DATE_PREFIX}-d41d8cd98f.png",
@@ -435,8 +444,8 @@ def test_process_skip_unsupported_extension(
         "/path/does/not/exist", "filename.dat", dryrun=False
     )
 
-    # Assert: should return False and not call os.rename
-    assert result is False
+    # Assert: should return ExitCode.NOTHING and not call os.rename
+    assert result == ExitCode.NOTHING
     mock_os_rename.assert_not_called()
 
 
@@ -452,9 +461,47 @@ def test_process_skip_already_correct_name(
         "/path/does/not/exist", f"{EXPECTED_DATE_PREFIX}-d41d8cd98f.png", dryrun=False
     )
 
-    # Assert: should return False and not call os.rename
-    assert result is False
+    # Assert: should return ExitCode.NOTHING and not call os.rename
+    assert result == ExitCode.NOTHING
     mock_os_rename.assert_not_called()
+
+
+# ----------------------------------------------------------------------
+# Test process_file exit code scenarios
+# ----------------------------------------------------------------------
+
+
+def test_process_file_os_error_on_rename(tmp_path: Path, mocker: MockerFixture) -> None:
+    """process_file returns ExitCode.ERROR when os.rename raises OSError."""
+    test_file = tmp_path / "test.jpg"
+    test_file.write_bytes(b"fake image data")
+    mocker.patch("os.rename", side_effect=OSError("Permission denied"))
+    mocker.patch("autorename.autorename.get_directory_config", return_value=None)
+    result = autorename.process_file(str(tmp_path), "test.jpg", dryrun=False)
+    assert result == ExitCode.ERROR
+
+
+def test_process_file_os_error_on_remove(tmp_path: Path, mocker: MockerFixture) -> None:
+    """process_file returns ERROR when os.remove raises OSError for .DS_Store."""
+    test_file = tmp_path / ".DS_Store"
+    test_file.write_bytes(b"")
+    mocker.patch("os.remove", side_effect=OSError("Permission denied"))
+    result = autorename.process_file(str(tmp_path), ".DS_Store", dryrun=False)
+    assert result == ExitCode.ERROR
+
+
+def test_process_file_nonexistent_returns_error() -> None:
+    """process_file returns ExitCode.ERROR for non-existent file."""
+    result = autorename.process_file("/nonexistent/path", "ghost.jpg", dryrun=True)
+    assert result == ExitCode.ERROR
+
+
+def test_process_file_ds_store_dryrun(tmp_path: Path) -> None:
+    """process_file returns ExitCode.ACTED for .DS_Store in dry-run."""
+    test_file = tmp_path / ".DS_Store"
+    test_file.write_bytes(b"")
+    result = autorename.process_file(str(tmp_path), ".DS_Store", dryrun=True)
+    assert result == ExitCode.ACTED
 
 
 # ----------------------------------------------------------------------
@@ -543,9 +590,9 @@ def test_format_size_gigabytes() -> None:
 
 
 def test_traverse_nonexistent_target() -> None:
-    """Test traversing a non-existent target."""
-    # Act & Assert: should log warning and return without error
-    autorename.traverse("/path/that/does/not/exist", dryrun=True)
+    """Test traversing a non-existent target returns ExitCode.ERROR."""
+    result = autorename.traverse("/path/that/does/not/exist", dryrun=True)
+    assert result == ExitCode.ERROR
 
 
 def test_traverse_directory(tmp_path: Any) -> None:
@@ -651,9 +698,9 @@ def test_traverse_skips_nas_directories(tmp_path: Any) -> None:
 
 
 def test_process_directory_nonexistent() -> None:
-    """Test process_directory raises FileNotFoundError for non-existent path."""
-    with pytest.raises(FileNotFoundError):
-        autorename.process_directory("/path/does/not/exist", dryrun=True)
+    """Test process_directory returns ExitCode.ERROR for non-existent path."""
+    result = autorename.process_directory("/path/does/not/exist", dryrun=True)
+    assert result == ExitCode.ERROR
 
 
 def test_process_directory_with_subdirectories(tmp_path: Any) -> None:
@@ -674,6 +721,53 @@ def test_process_directory_with_subdirectories(tmp_path: Any) -> None:
     assert (subdir / "nested.png").exists()
 
 
+def test_process_directory_permission_denied(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    """process_directory returns ExitCode.ERROR when listdir raises OSError."""
+    mocker.patch("os.listdir", side_effect=OSError("Permission denied"))
+    result = autorename.process_directory(str(tmp_path))
+    assert result == ExitCode.ERROR
+
+
+def test_process_directory_empty_returns_nothing(tmp_path: Path) -> None:
+    """process_directory returns ExitCode.NOTHING for empty directory."""
+    result = autorename.process_directory(str(tmp_path))
+    assert result == ExitCode.NOTHING
+
+
+def test_process_directory_error_isolation(
+    tmp_path: Path, mocker: MockerFixture
+) -> None:
+    """process_directory continues processing after one file errors."""
+    # Create two files: one that will error and one that will succeed
+    (tmp_path / "a_error.jpg").write_bytes(b"will error")
+    (tmp_path / "b_good.jpg").write_bytes(b"will succeed")
+
+    # Mock get_directory_config to return None (no config)
+    mocker.patch("autorename.autorename.get_directory_config", return_value=None)
+
+    # Make os.rename fail only for the first file
+    original_rename = os.rename
+
+    def selective_rename(src: str, dst: str) -> None:
+        if "a_error" in src:
+            raise OSError("Permission denied")
+        original_rename(src, dst)
+
+    mocker.patch("os.rename", side_effect=selective_rename)
+
+    result = autorename.process_directory(str(tmp_path), dryrun=False)
+    # Should be ExitCode.ERROR because at least one file errored
+    assert result == ExitCode.ERROR
+    # But the second file should still have been processed (renamed)
+    remaining = [f.name for f in tmp_path.iterdir() if f.is_file()]
+    # a_error.jpg should still exist (rename failed)
+    assert "a_error.jpg" in remaining
+    # b_good.jpg should NOT exist (renamed successfully)
+    assert "b_good.jpg" not in remaining
+
+
 # ----------------------------------------------------------------------
 # Test main function
 # ----------------------------------------------------------------------
@@ -688,11 +782,13 @@ def test_main_dryrun_default(tmp_path: Any, monkeypatch: Any) -> None:
     # Mock sys.argv
     monkeypatch.setattr("sys.argv", ["autorename", str(test_file)])
 
-    # Act: run main
-    autorename.main()
+    # Act: run main (exits with ExitCode.ACTED since there's a file to rename)
+    with pytest.raises(SystemExit) as exc_info:
+        autorename.main()
 
     # Assert: file should NOT be renamed (dryrun mode)
     assert test_file.exists()
+    assert exc_info.value.code == ExitCode.ACTED
 
 
 def test_main_commit_mode(tmp_path: Any, monkeypatch: Any) -> None:
@@ -705,11 +801,13 @@ def test_main_commit_mode(tmp_path: Any, monkeypatch: Any) -> None:
     monkeypatch.setattr("sys.argv", ["autorename", "--commit", str(test_file)])
 
     # Act: run main
-    autorename.main()
+    with pytest.raises(SystemExit) as exc_info:
+        autorename.main()
 
     # Assert: file should be renamed (commit mode)
     assert not test_file.exists()
     assert len(list(tmp_path.glob(f"{_YEAR}-*.png"))) == 1
+    assert exc_info.value.code == ExitCode.ACTED
 
 
 def test_main_multiple_targets(tmp_path: Any, monkeypatch: Any) -> None:
@@ -728,13 +826,15 @@ def test_main_multiple_targets(tmp_path: Any, monkeypatch: Any) -> None:
     monkeypatch.setattr("sys.argv", ["autorename", "--commit", str(file1), str(file2)])
 
     # Act: run main
-    autorename.main()
+    with pytest.raises(SystemExit) as exc_info:
+        autorename.main()
 
     # Assert: both files should be renamed
     assert not file1.exists()
     assert not file2.exists()
     assert len(list(dir1.glob(f"{_YEAR}-*.png"))) == 1
     assert len(list(dir2.glob(f"{_YEAR}-*.jpg"))) == 1
+    assert exc_info.value.code == ExitCode.ACTED
 
 
 # ----------------------------------------------------------------------
@@ -996,6 +1096,85 @@ def test_skip_regex_integration(tmp_path: Any) -> None:
     # Normal file should be renamed
     assert not (tmp_path / "my-vacation.jpg").exists()
     assert len(list(tmp_path.glob(f"{_YEAR}-*.jpg"))) == 1
+
+
+# ----------------------------------------------------------------------
+# Test traverse exit codes
+# ----------------------------------------------------------------------
+
+
+def test_traverse_nonexistent_returns_error() -> None:
+    """traverse returns ExitCode.ERROR for non-existent target."""
+    result = autorename.traverse("/path/that/does/not/exist", dryrun=True)
+    assert result == ExitCode.ERROR
+
+
+def test_traverse_single_file_returns_acted(tmp_path: Path) -> None:
+    """traverse returns ExitCode.ACTED when a file is renamed."""
+    test_file = tmp_path / "test.png"
+    test_file.write_bytes(b"test content")
+    result = autorename.traverse(str(test_file), dryrun=False)
+    assert result == ExitCode.ACTED
+
+
+def test_traverse_directory_nothing_to_do(tmp_path: Path) -> None:
+    """traverse returns ExitCode.NOTHING when no files need renaming."""
+    # Create a file with unsupported extension
+    (tmp_path / "readme.txt").write_bytes(b"text file")
+    result = autorename.traverse(str(tmp_path), dryrun=True)
+    assert result == ExitCode.NOTHING
+
+
+# ----------------------------------------------------------------------
+# Test main exit codes
+# ----------------------------------------------------------------------
+
+
+def test_main_exit_nothing(tmp_path: Path, mocker: MockerFixture) -> None:
+    """main() exits 0 when nothing to do."""
+    (tmp_path / "readme.txt").write_bytes(b"text file")
+    mocker.patch("sys.argv", ["autorename", str(tmp_path)])
+    with pytest.raises(SystemExit) as exc_info:
+        autorename.main()
+    assert exc_info.value.code == ExitCode.NOTHING
+
+
+def test_main_exit_acted(tmp_path: Path, mocker: MockerFixture) -> None:
+    """main() exits 1 when files are renamed."""
+    (tmp_path / "test.png").write_bytes(b"image data")
+    mocker.patch("sys.argv", ["autorename", "--commit", str(tmp_path)])
+    with pytest.raises(SystemExit) as exc_info:
+        autorename.main()
+    assert exc_info.value.code == ExitCode.ACTED
+
+
+def test_main_exit_error_nonexistent(mocker: MockerFixture) -> None:
+    """main() exits 2 for non-existent target."""
+    mocker.patch("sys.argv", ["autorename", "/nonexistent/path"])
+    with pytest.raises(SystemExit) as exc_info:
+        autorename.main()
+    assert exc_info.value.code == ExitCode.ERROR
+
+
+def test_main_keyboard_interrupt(tmp_path: Path, mocker: MockerFixture) -> None:
+    """main() exits 130 on KeyboardInterrupt."""
+    mocker.patch("sys.argv", ["autorename", str(tmp_path)])
+    mocker.patch("autorename.autorename.traverse", side_effect=KeyboardInterrupt)
+    with pytest.raises(SystemExit) as exc_info:
+        autorename.main()
+    assert exc_info.value.code == 130
+
+
+def test_main_value_error(tmp_path: Path, mocker: MockerFixture) -> None:
+    """main() exits 2 on ValueError from config."""
+    mocker.patch("sys.argv", ["autorename", str(tmp_path)])
+    mocker.patch(
+        "autorename.autorename.traverse",
+        side_effect=ValueError("Bad config"),
+    )
+    with pytest.raises(SystemExit) as exc_info:
+        autorename.main()
+    assert exc_info.value.code == ExitCode.ERROR
 
 
 # ----------------------------------------------------------------------

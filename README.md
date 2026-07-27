@@ -50,6 +50,8 @@ Features:
 
 - Can be run in a dry-run mode to see what it would do without actually doing anything.
 
+- Uses diff-style exit codes: `0` if no action was needed, `1` if files were renamed or deleted (or would be in dry-run mode), `2` on error, making it perfect for use in cron jobs with email notifications that get send only when something interesting happens.
+
 ## In-Place Configuration
 
 The script can be configured to name files with **day** or **minute** granularity in a directory (and its subdirectories) via the placement of configuration files. The script recognizes two file names:
@@ -171,3 +173,15 @@ When developing, use `uv run` to execute the command:
 ```bash
 uv run autorename ~/Clippings
 ```
+
+### Exit Codes
+
+autorename uses diff-style exit codes (like `diff` and `grep -q`):
+
+| Code | Meaning |
+| ---- | ------- |
+| 0 | No files needed renaming |
+| 1 | Files were renamed or deleted (or would be in dry-run) |
+| 2 | Error occurred |
+
+When processing multiple targets, the highest exit code wins. File-level errors do not abort the batch -- remaining files are still processed.

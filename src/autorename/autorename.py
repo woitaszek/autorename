@@ -4,10 +4,12 @@
 import argparse
 import configparser
 import datetime
+import enum
 import hashlib
 import logging
 import os
 import re
+import sys
 import zoneinfo
 from typing import Literal, TypedDict
 
@@ -62,6 +64,14 @@ SKIP_REGEX_SAMPLE_STEMS: list[str] = [
     "project-notes",
     "File \U0001f31f Name  X",
 ]
+
+
+class ExitCode(enum.IntEnum):
+    """Process exit codes following diff convention."""
+
+    NOTHING = 0  # No action needed
+    ACTED = 1  # Renamed or deleted files (or would have in dry-run)
+    ERROR = 2  # Error occurred
 
 
 # Regular expression for detecting manually-named files that should not
@@ -384,31 +394,34 @@ def _should_skip_directory(name: str) -> bool:
     return name.startswith((".", "@", "#"))
 
 
-def traverse(target: str, dryrun: bool = True) -> None:
+def traverse(target: str, dryrun: bool = True) -> ExitCode:
     """Traverse and process files or directories.
 
     If the target is a directory, recursively processes all files within it.
     If the target is a file, processes just that file. Non-existent targets
-    are skipped with a warning.
+    result in an error return.
 
     Args:
         target: Path to a file or directory to process.
         dryrun: If True, only simulate renames without making changes.
             Defaults to True.
+
+    Returns:
+        ExitCode.NOTHING (0) if no action needed, ExitCode.ACTED (1) if any file
+        was renamed or deleted, ExitCode.ERROR (2) if an error occurred.
     """
 
     # Skip things that don't exist
     if not os.path.exists(target):
-        logger.warning("Argument '%s' is not a file or a directory, skipping", target)
-        return
+        logger.error("Target '%s' does not exist", target)
+        return ExitCode.ERROR
 
     # Process arguments that are files
     if os.path.isfile(target):
         logger.info("Processing filename argument '%s'", target)
         path = os.path.dirname(target)
         filename = os.path.basename(target)
-        process_file(path, filename, dryrun)
-        return
+        return process_file(path, filename, dryrun)
 
     # Process arguments that are directories
     if os.path.isdir(target):
@@ -432,15 +445,16 @@ def traverse(target: str, dryrun: bool = True) -> None:
         all_dirs.sort()
 
         # Now, process each directory
+        result = ExitCode.NOTHING
         for root in all_dirs:
-            process_directory(root, dryrun)
-        return
+            result = max(result, process_directory(root, dryrun))
+        return result
 
-    msg = f"Should not get here, directory entry '{target}' is not a file or directory"
-    raise AssertionError(msg)
+    logger.error("Target '%s' is not a regular file or directory", target)
+    return ExitCode.ERROR
 
 
-def process_directory(path: str, dryrun: bool = True) -> None:
+def process_directory(path: str, dryrun: bool = True) -> ExitCode:
     """Process all files in the specified directory.
 
     Iterates through all regular files in the directory and processes each
@@ -451,26 +465,33 @@ def process_directory(path: str, dryrun: bool = True) -> None:
         dryrun: If True, only simulate renames without making changes.
             Defaults to True.
 
-    Raises:
-        FileNotFoundError: If the directory does not exist.
+    Returns:
+        ExitCode.NOTHING (0) if no action needed
+        ExitCode.ACTED (1) if any file was renamed or deleted
+        ExitCode.ERROR (2) if an error occurred.
     """
 
     # Check that the target directory exists
     if not os.path.exists(path):
-        raise FileNotFoundError(path)
+        logger.error("Directory not found: %s", path)
+        return ExitCode.ERROR
 
     # Build the list of the files in the directory, capturing the
     # maximum filename length, the number of files, and total size
     max_filename_length = 0
     total_size = 0
     filelist = []
-    for filename in os.listdir(path):
-        filepath = os.path.join(path, filename)
-        if not os.path.isfile(filepath):
-            continue
-        filelist.append((path, filename))
-        max_filename_length = max(max_filename_length, len(filename))
-        total_size += os.path.getsize(filepath)
+    try:
+        for filename in os.listdir(path):
+            filepath = os.path.join(path, filename)
+            if not os.path.isfile(filepath):
+                continue
+            filelist.append((path, filename))
+            max_filename_length = max(max_filename_length, len(filename))
+            total_size += os.path.getsize(filepath)
+    except OSError as e:
+        logger.error("Failed to list directory '%s': %s", path, e)
+        return ExitCode.ERROR
 
     logger.info(
         "Processing directory '%s' (%i files, %s)",
@@ -480,13 +501,20 @@ def process_directory(path: str, dryrun: bool = True) -> None:
     )
 
     # Process each file in the directory
+    result = ExitCode.NOTHING
     for path, filename in filelist:
-        process_file(path, filename, dryrun, max_filename_length=max_filename_length)
+        result = max(
+            result,
+            process_file(
+                path, filename, dryrun, max_filename_length=max_filename_length
+            ),
+        )
+    return result
 
 
 def process_file(
     path: str, filename: str, dryrun: bool = True, max_filename_length: int = 0
-) -> bool:
+) -> ExitCode:
     """Process a single file for potential renaming.
 
     Checks if the file should be renamed based on its current name and
@@ -502,57 +530,62 @@ def process_file(
             Defaults to 0.
 
     Returns:
-        True if the file was renamed or deleted, False otherwise.
-
-    Raises:
-        FileNotFoundError: If the file does not exist.
+        ExitCode.NOTHING (0) if no action needed
+        ExitCode.ACTED (1) if file was renamed or deleted
+        ExitCode.ERROR (2) if an error occurred.
     """
 
     # Check that the source file exists
     fullpath = os.path.join(path, filename)
     if not os.path.exists(fullpath):
-        raise FileNotFoundError(fullpath)
+        logger.error("File not found: %s", fullpath)
+        return ExitCode.ERROR
 
-    # Hardcoded override: If this is a .DS_Store file, make it go away
-    if filename == ".DS_Store":
+    try:
+        # Hardcoded override: If this is a .DS_Store file, make it go away
+        if filename == ".DS_Store":
+            if dryrun:
+                logger.warning("  Deleting file (dryrun):   %s", filename)
+            else:
+                logger.warning("  Deleting file:            %s", filename)
+                os.remove(fullpath)
+            return ExitCode.ACTED
+
+        # Generate the new filename
+        new_filename = generate_filename(path, filename)
+
+        # Skip if the file is not to be renamed
+        if new_filename is None:
+            # logger.debug('  Skipping file:            %s', filename)
+            return ExitCode.NOTHING
+
+        # Skip if the file is already named correctly
+        if filename == new_filename:
+            # logger.debug('  Skipping file:            %s', filename)
+            return ExitCode.NOTHING
+
+        # Rename the file
+        new_fullpath = os.path.join(path, new_filename)
+        filename_with_spacing = filename.ljust(max_filename_length)
         if dryrun:
-            logger.warning("  Deleting file (dryrun):   %s", filename)
+            logger.debug(
+                "  Renaming file (dryrun):   %s -> %s",
+                filename_with_spacing,
+                new_filename,
+            )  # Filename at 50 chars for info
         else:
-            logger.warning("  Deleting file:            %s", filename)
-            os.remove(fullpath)
-        return True
+            logger.debug(
+                "  Renaming file:            %s -> %s",
+                filename_with_spacing,
+                new_filename,
+            )  # Filename at 50 chars for info
+            os.rename(fullpath, new_fullpath)
 
-    # Generate the new filename
-    new_filename = generate_filename(path, filename)
+        return ExitCode.ACTED
 
-    # Skip if the file is not to be renamed
-    if new_filename is None:
-        # logger.debug('  Skipping file:            %s', filename)
-        return False
-
-    # Skip if the file is already named correctly
-    if filename == new_filename:
-        # logger.debug('  Skipping file:            %s', filename)
-        return False
-
-    # Rename the file
-    new_fullpath = os.path.join(path, new_filename)
-    filename_with_spacing = filename.ljust(max_filename_length)
-    if dryrun:
-        logger.debug(
-            "  Renaming file (dryrun):   %s -> %s",
-            filename_with_spacing,
-            new_filename,
-        )  # Filename at 50 chars for info
-    else:
-        logger.debug(
-            "  Renaming file:            %s -> %s",
-            filename_with_spacing,
-            new_filename,
-        )  # Filename at 50 chars for info
-        os.rename(fullpath, new_fullpath)
-
-    return True
+    except OSError as e:
+        logger.error("Failed to process '%s': %s", filename, e)
+        return ExitCode.ERROR
 
 
 # ----------------------------------------------------------------------
@@ -565,7 +598,14 @@ def main() -> None:
 
     Parses command-line arguments and processes all specified files and
     directories. Runs in dry-run mode by default unless --commit is specified.
+
+    Exit codes:
+        0: No files needed renaming.
+        1: One or more files were renamed or deleted (or would be in dry-run).
+        2: An error occurred.
+        130: Interrupted by user (Ctrl+C).
     """
+
     parser = argparse.ArgumentParser(
         description="Rename specified files to 'YYYY-MM-DD-HASH.ext'"
     )
@@ -587,10 +627,19 @@ def main() -> None:
         dryrun = True
 
     # Process each command line argument
-    for _t in args.target:
-        traverse(_t, dryrun)
+    try:
+        result = ExitCode.NOTHING
+        for _t in args.target:
+            result = max(result, traverse(_t, dryrun))
+    except KeyboardInterrupt:
+        logger.warning("Interrupted by user (exit code 130)")
+        sys.exit(130)
+    except ValueError as e:
+        logger.error("Terminating with error (exit code %d): %s", ExitCode.ERROR, e)
+        sys.exit(ExitCode.ERROR)
 
-    logger.info("Terminating normally")
+    logger.info("Terminating normally (exit code %d)", result)
+    sys.exit(result)
 
 
 if __name__ == "__main__":
