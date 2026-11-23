@@ -30,6 +30,10 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/autorename"]
 
+[tool.uv]
+# Wait one week before selecting newly uploaded distributions.
+exclude-newer = "1 week"
+
 [tool.ruff]
 exclude = ["docs"]
 extend-include = ["*.ipynb"]
